@@ -76,6 +76,13 @@ class Exchange(models.Model):
         _("received currency"), max_length=3, choices=Currency.choices
     )
     provider = models.CharField(_("provider"), max_length=80, blank=True)
+    # Only a transfer needs this: money that leaves one bank and lands in
+    # another. Blank means the funds stay where `provider` put them. Keeping it
+    # a separate field means renaming a bank cannot sever the link the way a
+    # convention buried in the provider string could.
+    received_provider = models.CharField(
+        _("destination provider"), max_length=80, blank=True
+    )
     # Kept nullable and SET_NULL: a conversion you made is history, and losing
     # the account should not erase the record of it.
     owner = models.ForeignKey(

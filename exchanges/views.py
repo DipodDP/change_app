@@ -122,10 +122,23 @@ def _exchange_context(request, form, instance=None):
     else:
         typed, exclude = "", (instance.provider if instance else "")
 
+    # Matching currencies mean a transfer, which is the only kind of row with a
+    # second bank. Decided here so the field is already open when an existing
+    # transfer is edited, rather than flashing in once scripts run.
+    if request.method == "POST":
+        shows_destination = request.POST.get("spent_currency") == request.POST.get(
+            "received_currency"
+        )
+    else:
+        shows_destination = bool(
+            instance and instance.spent_currency == instance.received_currency
+        )
+
     return {
         "form": form,
         "is_edit": instance is not None,
         "exchange": instance,
+        "is_transfer": shows_destination,
         "bank_picks": bank_suggestions(
             owned_exchanges(request), typed=typed, exclude=exclude
         ),

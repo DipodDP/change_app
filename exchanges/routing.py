@@ -80,24 +80,15 @@ class Option:
         return self.path.legs
 
 
-# A transfer names both ends of a move — "Белинвестбанк→Prior" — because the
-# money leaves one account and lands in another. A plain conversion names one
-# bank, which is both where the funds came from and where they end up.
-TRANSFER_SEP = "→"
-
-
 def provider_ends(exchange: Exchange) -> tuple[str, str]:
-    """Where an exchange takes funds from, and where it leaves them."""
+    """Where an exchange takes funds from, and where it leaves them.
+
+    Only a transfer names a second bank; for a plain conversion the money ends
+    up at the same place it started.
+    """
     src = (exchange.provider or "").strip()
-    dst = (getattr(exchange, "received_provider", "") or "").strip()
-    if dst:
-        return src, dst
-    # Legacy rows wrote both ends into one string before the destination had a
-    # field of its own; still read them so old data keeps routing.
-    if TRANSFER_SEP in src:
-        first, _, second = src.partition(TRANSFER_SEP)
-        return first.strip(), second.strip()
-    return src, src
+    dst = (exchange.received_provider or "").strip()
+    return src, dst or src
 
 
 def is_transfer(exchange: Exchange) -> bool:

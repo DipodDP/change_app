@@ -36,6 +36,7 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             "received_amount",
             "received_currency",
             "provider",
+            "received_provider",
         ]
         labels = {
             "spent_amount": _("I spent"),
@@ -43,6 +44,7 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             "received_amount": _("I received"),
             "received_currency": _("Received currency"),
             "provider": _("Bank or service"),
+            "received_provider": _("Money ends up at"),
         }
         widgets = {
             "spent_amount": forms.NumberInput(
@@ -53,6 +55,9 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             ),
             "provider": forms.TextInput(
                 attrs={"placeholder": _("e.g. Prior, Wise, Revolut")}
+            ),
+            "received_provider": forms.TextInput(
+                attrs={"placeholder": _("e.g. Prior")}
             ),
         }
 

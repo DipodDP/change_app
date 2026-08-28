@@ -8,13 +8,22 @@ from .models import Currency, Exchange, Route, RouteStep
 from .routing import Leg, best_paths, chain_rate, compare, is_transfer, provider_ends
 
 
-def make(spent, spent_cur, received, received_cur, provider="", owner=None):
+def make(
+    spent,
+    spent_cur,
+    received,
+    received_cur,
+    provider="",
+    owner=None,
+    received_provider="",
+):
     return Exchange.objects.create(
         spent_amount=Decimal(str(spent)),
         spent_currency=spent_cur,
         received_amount=Decimal(str(received)),
         received_currency=received_cur,
         provider=provider,
+        received_provider=received_provider,
         owner=owner,
     )
 
@@ -1437,8 +1446,8 @@ class SavedRouteContinuityTests(TestCase):
 class TransferTests(TestCase):
     """Moving money between your own accounts, in one currency.
 
-    A transfer is not a conversion, so it carries a provider on each end
-    ("Белинвестбанк→Prior") and may keep the same currency on both sides.
+    A transfer is not a conversion: it names the bank it left and the bank it
+    landed in, and may keep the same currency on both sides.
     """
 
     def test_a_transfer_may_keep_the_same_currency(self):
@@ -1448,7 +1457,8 @@ class TransferTests(TestCase):
                 "spent_currency": Currency.BYN,
                 "received_amount": "1000",
                 "received_currency": Currency.BYN,
-                "provider": "Белинвестбанк→Prior",
+                "provider": "Белинвестбанк",
+                "received_provider": "Prior",
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
@@ -1468,15 +1478,29 @@ class TransferTests(TestCase):
 
     def test_a_transfer_bridges_two_providers(self):
         make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
-        make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк→Prior")
+        make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
         make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
         paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR)
         self.assertEqual(len(paths), 1)
 
     def test_a_transfer_does_not_bridge_the_wrong_way(self):
-        # Белинвестбанк→Prior moves money one way only.
+        # The transfer moves money one way only.
         make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
-        make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк→Prior")
+        make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
         make("100", Currency.BYN, "28.84", Currency.EUR, "Белинвестбанк")
         paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR)
         self.assertEqual(len(paths), 0)
@@ -1484,7 +1508,14 @@ class TransferTests(TestCase):
     def test_a_transfer_with_a_fee_costs_something(self):
         steps = [
             make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
-            make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк→Prior"),
+            make(
+            "1000",
+            Currency.BYN,
+            "995",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        ),
             make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
         ]
         lossless = (Decimal("2140.43") / Decimal("60000")) * (
@@ -1527,13 +1558,27 @@ class SameCurrencyCostTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_the_commission_shows_up_in_the_rate(self):
-        e = make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк→Prior")
+        e = make(
+            "1000",
+            Currency.BYN,
+            "995",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
         self.assertLess(e.rate, Decimal("1"))
 
     def test_a_fee_bearing_transfer_lowers_the_whole_chain(self):
         steps = [
             make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
-            make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк→Prior"),
+            make(
+            "1000",
+            Currency.BYN,
+            "995",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        ),
             make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
         ]
         free = (Decimal("2140.43") / Decimal("60000")) * (
@@ -1559,7 +1604,14 @@ class TransferDedupTests(TestCase):
     """
 
     def setUp(self):
-        make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк→Prior")
+        make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
         make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
         make("14.02", Currency.EUR, "5000", Currency.HUF, "Prior")
 
@@ -1576,3 +1628,112 @@ class TransferDedupTests(TestCase):
         paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.HUF)
         self.assertEqual(len(paths), 1)
         self.assertTrue(any(is_transfer(l.exchange) for l in paths[0].legs))
+
+
+class DestinationProviderTests(TestCase):
+    """Where funds land is its own field, not a convention inside a name.
+
+    A transfer has two banks. Hiding the second one inside the provider string
+    means any ordinary rename silently severs a route, so the destination gets
+    a field of its own and `provider` goes back to meaning just "the bank".
+    """
+
+    def test_provider_alone_means_funds_stay_put(self):
+        e = make("1000", Currency.BYN, "995", Currency.BYN, "Prior")
+        self.assertEqual(provider_ends(e), ("Prior", "Prior"))
+
+    def test_a_destination_moves_the_funds(self):
+        e = make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк")
+        e.received_provider = "Prior"
+        e.save()
+        self.assertEqual(provider_ends(e), ("Белинвестбанк", "Prior"))
+
+    def test_renaming_the_bank_does_not_break_the_link(self):
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        t = make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк")
+        t.received_provider = "Prior"
+        t.save()
+        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        self.assertGreater(chain_rate([a, t, b]), 0)
+
+        # The user relabels the source bank; the destination is untouched.
+        t.provider = "Белинвестбанк (карта)"
+        t.save()
+        a.provider = "Белинвестбанк (карта)"
+        a.save()
+        self.assertGreater(chain_rate([a, t, b]), 0)
+
+    def test_the_form_offers_a_destination_field(self):
+        self.assertIn("received_provider", ExchangeForm().fields)
+
+    def test_a_transfer_recorded_through_the_form_routes(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        form = ExchangeForm(
+            data={
+                "spent_amount": "1000",
+                "spent_currency": Currency.BYN,
+                "received_amount": "1000",
+                "received_currency": Currency.BYN,
+                "provider": "Белинвестбанк",
+                "received_provider": "Prior",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR)
+        self.assertEqual(len(paths), 1)
+
+
+class DestinationVisibilityTests(SignedIn, TestCase):
+    """The destination field only means something on a transfer.
+
+    On a conversion the money necessarily ends up at the bank that performed
+    it, so the field is noise on every ordinary row. It is shown when both
+    currencies match — which is exactly when a transfer is being recorded —
+    and stays in the markup so the browser can reveal it as the user types.
+    """
+
+    def test_the_field_is_hidden_until_currencies_match(self):
+        r = self.client.get(reverse("exchange-create"))
+        row = self._destination_row(r.content.decode())
+        self.assertIn("hidden", row)
+
+    def test_editing_a_transfer_shows_the_field(self):
+        t = make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+            owner=self.user,
+        )
+        r = self.client.get(reverse("exchange-edit", args=[t.pk]))
+        row = self._destination_row(r.content.decode())
+        self.assertNotIn("hidden", row)
+
+    def test_editing_a_conversion_hides_the_field(self):
+        e = make(
+            "100", Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user
+        )
+        r = self.client.get(reverse("exchange-edit", args=[e.pk]))
+        row = self._destination_row(r.content.decode())
+        self.assertIn("hidden", row)
+
+    def test_no_template_comment_leaks_into_the_page(self):
+        # `{# #}` is single-line only: spread it over several and Django prints
+        # it verbatim instead of dropping it.
+        r = self.client.get(reverse("exchange-create"))
+        self.assertNotIn("{#", r.content.decode())
+
+    def test_a_hidden_destination_is_still_submittable(self):
+        # Reveal happens in the browser, so the input must exist either way.
+        r = self.client.get(reverse("exchange-create"))
+        self.assertIn('name="received_provider"', r.content.decode())
+
+    def _destination_row(self, html):
+        """The markup block wrapping the destination input."""
+        i = html.index('name="received_provider"')
+        start = html.rindex("<div", 0, i)
+        return html[start : html.index("</div>", i)]

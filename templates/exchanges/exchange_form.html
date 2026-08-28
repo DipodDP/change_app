@@ -61,6 +61,19 @@
       {% endif %}
     </div>
 
+    {% comment %}
+      Only a transfer has a second bank, and a transfer is what matching
+      currencies mean. The row stays in the markup either way so the browser
+      can reveal it the moment the two selects agree.
+    {% endcomment %}
+    <div class="field js-destination" style="margin-top:16px"
+         {% if not is_transfer %}hidden{% endif %}>
+      <label for="{{ form.received_provider.id_for_label }}">{{ form.received_provider.label }}</label>
+      {{ form.received_provider }}
+      <span class="helptext">{% trans "Which bank the money landed in." %}</span>
+      {% for e in form.received_provider.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+    </div>
+
     {% if is_edit %}
       <div class="impact" style="margin-top:18px">
         <h3>
@@ -96,5 +109,24 @@ document.querySelectorAll('.js-fill').forEach(function (chip) {
     if (field) { field.value = chip.dataset.value; field.focus(); }
   });
 });
+
+// Same currency on both sides is a transfer, and only a transfer lands the
+// money at a second bank. Follow the selects so the field appears as soon as
+// that is what the user is describing.
+(function () {
+  var spent = document.getElementById('{{ form.spent_currency.id_for_label }}');
+  var received = document.getElementById('{{ form.received_currency.id_for_label }}');
+  var row = document.querySelector('.js-destination');
+  if (!spent || !received || !row) { return; }
+  function sync() {
+    var transfer = spent.value === received.value;
+    row.hidden = !transfer;
+    // Clearing on the way out keeps a stale bank from being saved against a
+    // conversion the user has since switched to.
+    if (!transfer) { row.querySelector('input').value = ''; }
+  }
+  spent.addEventListener('change', sync);
+  received.addEventListener('change', sync);
+})();
 </script>
 {% endblock %}
