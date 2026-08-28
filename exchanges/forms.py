@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.forms import AuthenticationForm
 
 from .models import Currency, Exchange, Route
+from .suggestions import currency_choices
 
 
 class StyledFormMixin:
@@ -54,6 +55,15 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
                 attrs={"placeholder": _("e.g. Prior, Wise, Revolut")}
             ),
         }
+
+    def __init__(self, *args, exchanges=None, **kwargs):
+        # The catalog is long; the caller passes the user's own rows so the
+        # currencies they actually deal in sit at the top of both selects.
+        super().__init__(*args, **kwargs)
+        if exchanges is not None:
+            choices = currency_choices(exchanges)
+            for name in ("spent_currency", "received_currency"):
+                self.fields[name].choices = choices
 
     def clean(self):
         cleaned = super().clean()
@@ -146,6 +156,13 @@ class CompareForm(StyledFormMixin, forms.Form):
     target = forms.ChoiceField(
         label=_("To"), choices=Currency.choices, initial=Currency.HUF
     )
+
+    def __init__(self, *args, exchanges=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if exchanges is not None:
+            choices = currency_choices(exchanges)
+            for name in ("base", "target"):
+                self.fields[name].choices = choices
 
     def clean(self):
         cleaned = super().clean()

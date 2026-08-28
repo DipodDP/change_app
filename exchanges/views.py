@@ -42,7 +42,7 @@ def owned_routes(request):
 @login_required
 def dashboard(request):
     exchanges = list(owned_exchanges(request))
-    form = CompareForm(request.GET or None)
+    form = CompareForm(request.GET or None, exchanges=exchanges)
 
     query = None
     if request.GET and form.is_valid():
@@ -135,7 +135,7 @@ def _exchange_context(request, form, instance=None):
 
 @login_required
 def exchange_create(request):
-    form = ExchangeForm(request.POST or None)
+    form = ExchangeForm(request.POST or None, exchanges=owned_exchanges(request))
     if request.method == "POST" and form.is_valid():
         exchange = form.save(commit=False)
         exchange.owner = request.user
@@ -150,7 +150,9 @@ def exchange_create(request):
 @login_required
 def exchange_edit(request, pk):
     exchange = get_object_or_404(owned_exchanges(request), pk=pk)
-    form = ExchangeForm(request.POST or None, instance=exchange)
+    form = ExchangeForm(
+        request.POST or None, instance=exchange, exchanges=owned_exchanges(request)
+    )
     if request.method == "POST" and form.is_valid():
         form.save()
         # A route named after its banks is stale as soon as one of them changes.

@@ -1163,3 +1163,104 @@ class NameLastResortTests(TestCase):
         first.refresh_from_db()
         second.refresh_from_db()
         self.assertNotEqual(first.name, second.name)
+
+
+class CurrencyCatalogTests(TestCase):
+    """The list has to cover the currencies people around here actually hold."""
+
+    def test_covers_the_wider_region(self):
+        codes = set(Currency.values)
+        for code in ["AMD", "GEL", "TRY", "PLN", "GBP", "RSD", "AED", "UAH"]:
+            self.assertIn(code, codes)
+
+    def test_every_code_has_a_display_label(self):
+        for code, label in Currency.choices:
+            self.assertTrue(label.strip(), code)
+
+
+class CurrencyOrderingTests(TestCase):
+    """A long list is only usable if what you use most is at the top."""
+
+    def setUp(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN)
+        make("100", Currency.BYN, "28.84", Currency.EUR)
+        make("14.02", Currency.EUR, 5000, Currency.HUF)
+
+    def test_used_currencies_come_first_by_frequency(self):
+        from .suggestions import currency_choices
+
+        codes = [c for c, _ in currency_choices(Exchange.objects.all())]
+        # BYN and EUR appear on two rows each, RUB and HUF on one.
+        self.assertEqual(set(codes[:2]), {"BYN", "EUR"})
+        self.assertEqual(set(codes[2:4]), {"HUF", "RUB"})
+
+    def test_unused_currencies_follow_in_alphabetical_order(self):
+        from .suggestions import currency_choices
+
+        codes = [c for c, _ in currency_choices(Exchange.objects.all())]
+        rest = codes[4:]
+        self.assertEqual(rest, sorted(rest))
+        self.assertIn("AMD", rest)
+
+    def test_nothing_is_lost_or_duplicated(self):
+        from .suggestions import currency_choices
+
+        codes = [c for c, _ in currency_choices(Exchange.objects.all())]
+        self.assertEqual(sorted(codes), sorted(Currency.values))
+
+    def test_no_history_keeps_the_plain_alphabetical_list(self):
+        from .suggestions import currency_choices
+
+        codes = [c for c, _ in currency_choices(Exchange.objects.none())]
+        self.assertEqual(codes, sorted(Currency.values))
+
+
+class CurrencyFormOrderingTests(SignedIn, TestCase):
+    """The forms the user actually sees have to honour that ordering."""
+
+    def setUp(self):
+        make("100", Currency.BYN, "28.84", Currency.EUR)
+        make("14.02", Currency.EUR, 5000, Currency.HUF)
+
+    def test_exchange_form_lists_used_currencies_first(self):
+        response = self.client.get(reverse("exchange-create"))
+        field = response.context["form"].fields["spent_currency"]
+        self.assertEqual([c for c, _ in field.choices][0], "EUR")
+
+    def test_compare_form_lists_used_currencies_first(self):
+        response = self.client.get(reverse("dashboard"))
+        field = response.context["form"].fields["base"]
+        self.assertEqual([c for c, _ in field.choices][0], "EUR")
+
+    def test_an_unused_currency_is_still_selectable(self):
+        response = self.client.post(
+            reverse("exchange-create"),
+            {
+                "spent_amount": "100",
+                "spent_currency": "BYN",
+                "received_amount": "12000",
+                "received_currency": "AMD",
+                "provider": "Ameria",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Exchange.objects.filter(received_currency="AMD").exists()
+        )
+
+
+class CurrencyLabelRenderingTests(SignedIn, TestCase):
+    """The label already carries the symbol; the page must not add it twice."""
+
+    def setUp(self):
+        make("100", Currency.BYN, "28.84", Currency.EUR)
+
+    def test_dashboard_select_shows_each_symbol_once(self):
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertIn("<option value=\"EUR\" >EUR · €</option>", body)
+        self.assertNotIn("EUR · EUR", body)
+
+    def test_exchange_form_select_shows_each_symbol_once(self):
+        body = self.client.get(reverse("exchange-create")).content.decode()
+        self.assertIn("EUR · €", body)
+        self.assertNotIn("EUR · EUR", body)

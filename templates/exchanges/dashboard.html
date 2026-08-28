@@ -32,8 +32,8 @@
     <div class="field">
       <label for="{{ form.base.id_for_label }}">{% if is_get_mode %}{% trans "Paying with" %}{% else %}{% trans "From" %}{% endif %}</label>
       <select name="base" id="{{ form.base.id_for_label }}" class="select">
-        {% for code, sign in form.fields.base.choices %}
-          <option value="{{ code }}" {% if query and query.base == code %}selected{% endif %}>{{ code }} · {{ sign }}</option>
+        {% for code, label in form.fields.base.choices %}
+          <option value="{{ code }}" {% if query and query.base == code %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
@@ -45,8 +45,8 @@
     <div class="field">
       <label for="{{ form.target.id_for_label }}">{% if is_get_mode %}{% trans "To receive" %}{% else %}{% trans "To" %}{% endif %}</label>
       <select name="target" id="{{ form.target.id_for_label }}" class="select">
-        {% for code, sign in form.fields.target.choices %}
-          <option value="{{ code }}" {% if query and query.target == code %}selected{% endif %}>{{ code }} · {{ sign }}</option>
+        {% for code, label in form.fields.target.choices %}
+          <option value="{{ code }}" {% if query and query.target == code %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>

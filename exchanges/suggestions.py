@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Iterable, Sequence
 
-from .models import Exchange, Route
+from .models import Currency, Exchange, Route
 from .routing import chain_rate
 
 DEFAULT_BANK_LIMIT = 6
@@ -240,3 +240,29 @@ def sync_route_names(exchange: Exchange | None = None, owner=None) -> list[Route
             route.save(update_fields=["name"])
             changed.append(route)
     return changed
+
+
+def currency_choices(exchanges: Iterable[Exchange]) -> list[tuple[str, str]]:
+    """Currency options with the user's own currencies floated to the top.
+
+    The catalog is long enough that scanning it is a chore, and all but a few
+    entries are dead weight for any one person. Ordering by how often a code
+    appears in their own records puts the working set within reach; everything
+    untouched keeps its alphabetical order so it stays predictable to hunt for.
+    """
+    counts: dict[str, int] = {}
+    for exchange in exchanges:
+        for code in (exchange.spent_currency, exchange.received_currency):
+            if code:
+                counts[code] = counts.get(code, 0) + 1
+
+    labels = dict(Currency.choices)
+    # Ties break alphabetically, so a fresh currency does not jump around as
+    # unrelated rows are added.
+    ordered = sorted(labels, key=lambda code: (-counts.get(code, 0), code))
+    # The bare symbol is enough on a result row but not in a list this long,
+    # where ¥ is two different currencies; the code disambiguates.
+    return [
+        (code, code if labels[code] == code else f"{code} · {labels[code]}")
+        for code in ordered
+    ]

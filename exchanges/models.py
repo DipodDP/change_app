@@ -11,12 +11,42 @@ RATE_DP = Decimal("0.00000001")
 
 
 class Currency(models.TextChoices):
-    RUB = "RUB", "₽"
+    """Currencies a route can pass through.
+
+    Labels are the symbol where one is in common use and the code otherwise,
+    since a bare "лв" or "₼" is only a hint — the dropdown shows both.
+    """
+
+    AED = "AED", "د.إ"
+    AMD = "AMD", "֏"
+    AZN = "AZN", "₼"
+    BGN = "BGN", "лв"
     BYN = "BYN", "BYN"
+    CHF = "CHF", "CHF"
+    CNY = "CNY", "¥"
+    CZK = "CZK", "Kč"
     EUR = "EUR", "€"
-    USD = "USD", "$"
-    KZT = "KZT", "₸"
+    GBP = "GBP", "£"
+    GEL = "GEL", "₾"
     HUF = "HUF", "Ft"
+    ILS = "ILS", "₪"
+    INR = "INR", "₹"
+    JPY = "JPY", "¥"
+    KGS = "KGS", "с"
+    KZT = "KZT", "₸"
+    MDL = "MDL", "L"
+    NOK = "NOK", "kr"
+    PLN = "PLN", "zł"
+    RON = "RON", "lei"
+    RSD = "RSD", "дин"
+    RUB = "RUB", "₽"
+    SEK = "SEK", "kr"
+    THB = "THB", "฿"
+    TRY = "TRY", "₺"
+    UAH = "UAH", "₴"
+    USD = "USD", "$"
+    UZS = "UZS", "soʻm"
+    VND = "VND", "₫"
 
 
 class Exchange(models.Model):
