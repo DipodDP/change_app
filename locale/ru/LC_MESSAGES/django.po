@@ -43,10 +43,6 @@ msgstr "Банк или сервис"
 msgid "e.g. Prior, Wise, Revolut"
 msgstr "напр. Prior, Wise, Revolut"
 
-#: exchanges/forms.py:64 exchanges/tests.py:261
-msgid "An exchange must convert between two different currencies."
-msgstr "Обмен должен быть между двумя разными валютами."
-
 #: exchanges/forms.py:113
 #, python-format
 msgid ""

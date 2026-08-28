@@ -3,8 +3,9 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 
+from .forms import ExchangeForm
 from .models import Currency, Exchange, Route, RouteStep
-from .routing import Leg, best_paths, chain_rate, compare
+from .routing import Leg, best_paths, chain_rate, compare, is_transfer, provider_ends
 
 
 def make(spent, spent_cur, received, received_cur, provider="", owner=None):
@@ -165,8 +166,8 @@ class CompareTests(TestCase):
 class SavedRouteTests(TestCase):
     def test_route_reports_its_chain_rate(self):
         a = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        b = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
-        route = Route.objects.create(name="Prior–OTP")
+        b = make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
+        route = Route.objects.create(name="Prior")
         RouteStep.objects.create(route=route, exchange=a, position=0)
         RouteStep.objects.create(route=route, exchange=b, position=1)
 
@@ -186,10 +187,11 @@ class SavedRouteTests(TestCase):
 
 class ViewTests(SignedIn, TestCase):
     def setUp(self):
+        # Each chain stays at one bank: funds cannot hop between providers.
         make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
+        make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
         make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
-        make("7.34", Currency.USD, 2200, Currency.HUF, "Wise")
+        make("7.34", Currency.USD, 2200, Currency.HUF, "Freedom")
 
     def test_dashboard_renders(self):
         response = self.client.get(reverse("dashboard"))
@@ -240,7 +242,9 @@ class ViewTests(SignedIn, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Exchange.objects.filter(spent_currency="RUB").exists())
 
-    def test_rejects_same_currency_on_both_sides(self):
+    def test_accepts_same_currency_on_both_sides(self):
+        # 100 in, 99 out is a transfer that cost 1 BYN in commission — a real
+        # cost, and one the app exists to make visible rather than refuse.
         response = self.client.post(
             reverse("exchange-create"),
             {
@@ -248,18 +252,12 @@ class ViewTests(SignedIn, TestCase):
                 "spent_currency": "BYN",
                 "received_amount": "99",
                 "received_currency": "BYN",
+                "provider": "Prior",
             },
         )
-        self.assertEqual(response.status_code, 200)
-        # Assert against the translated string so the test does not depend on
-        # which language happens to be the project default.
-        from django.utils.translation import gettext
-
-        self.assertFormError(
-            response.context["form"],
-            None,
-            gettext("An exchange must convert between two different currencies."),
-        )
+        self.assertRedirects(response, reverse("dashboard"))
+        moved = Exchange.objects.get(spent_currency="BYN", received_currency="BYN")
+        self.assertLess(moved.rate, Decimal("1"))
 
 
 class MoneyRoundingTests(TestCase):
@@ -404,11 +402,13 @@ class GroupingTests(TestCase):
     """Routes sharing a first step are grouped under it («общее начало»)."""
 
     def setUp(self):
-        self.rub_byn = make(60000, Currency.RUB, "2140.43", Currency.BYN, "Белинвест")
+        # The shared opening leg carries no bank, so either continuation can
+        # pick the funds up; each continuation then stays at its own bank.
+        self.rub_byn = make(60000, Currency.RUB, "2140.43", Currency.BYN)
         make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
+        make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
         make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
-        make("7.34", Currency.USD, 2200, Currency.HUF, "Wise")
+        make("7.34", Currency.USD, 2200, Currency.HUF, "Freedom")
 
     def test_routes_with_shared_prefix_are_grouped(self):
         from .routing import group_options
@@ -592,11 +592,13 @@ class RouteBuilderTests(TestCase):
 
 class NewFeatureViewTests(SignedIn, TestCase):
     def setUp(self):
-        self.rub_byn = make(60000, Currency.RUB, "2140.43", Currency.BYN, "Белинвест")
+        # The opening leg is unattributed so both continuations can use it;
+        # each continuation stays at one bank, since funds do not move between.
+        self.rub_byn = make(60000, Currency.RUB, "2140.43", Currency.BYN)
         self.byn_eur = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.eur_huf = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
+        self.eur_huf = make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
         make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
-        make("7.34", Currency.USD, 2200, Currency.HUF, "Wise")
+        make("7.34", Currency.USD, 2200, Currency.HUF, "Freedom")
 
     def test_send_mode_is_default(self):
         r = self.client.get(reverse("dashboard"))
@@ -650,7 +652,7 @@ class NewFeatureViewTests(SignedIn, TestCase):
             {"name": "Prior–OTP", "step_ids": f"{self.byn_eur.pk},{self.eur_huf.pk}"},
         )
         self.assertRedirects(r, reverse("dashboard"))
-        route = Route.objects.get(name="Prior–OTP")
+        route = Route.objects.get()
         self.assertEqual(route.ordered_steps(), [self.byn_eur, self.eur_huf])
 
     def test_disconnected_route_is_rejected(self):
@@ -1321,3 +1323,256 @@ class ChainProviderPlacementTests(SignedIn, TestCase):
                 "hop-cur", "hop-via", "hop-cur",
             ],
         )
+
+
+class ProviderContinuityTests(TestCase):
+    """Money sitting at one bank cannot spend itself at another.
+
+    A USD balance at Prior and a USD balance at Freedom are different accounts;
+    the app knows of no transfer between them, so a chain may only continue at
+    the provider that produced the funds.
+    """
+
+    def setUp(self):
+        self.rub_byn = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        self.byn_usd = make("100", Currency.BYN, "33.26", Currency.USD, "Prior")
+        self.rub_usd = make("20000", Currency.RUB, "236.13", Currency.USD, "Freedom")
+        self.usd_amd = make("16.47", Currency.USD, "5800", "AMD", "Freedom")
+
+    def test_a_chain_cannot_hop_between_providers(self):
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, "AMD")
+        for path in paths:
+            providers = [l.exchange.provider for l in path.legs]
+            self.assertNotIn("Prior", providers, "Prior USD is not Freedom USD")
+
+    def test_the_same_provider_chain_still_works(self):
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, "AMD")
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(
+            [l.exchange.pk for l in paths[0].legs],
+            [self.rub_usd.pk, self.usd_amd.pk],
+        )
+
+    def test_the_surviving_rate_is_the_all_freedom_one(self):
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, "AMD")
+        expected = (Decimal("236.13") / Decimal("20000")) * (
+            Decimal("5800") / Decimal("16.47")
+        )
+        self.assertEqual(
+            paths[0].rate.quantize(Decimal("0.0001")),
+            expected.quantize(Decimal("0.0001")),
+        )
+
+    def test_an_unlabelled_leg_can_bridge_two_providers(self):
+        # A leg with no provider is the escape hatch: it chains to anything,
+        # so a move the user has not attributed to a bank still connects.
+        make("100", Currency.BYN, "33.10", Currency.USD)
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, "AMD")
+        self.assertEqual(len(paths), 2)
+        self.assertTrue(
+            any("Белинвестбанк" in [l.exchange.provider for l in p.legs] for p in paths)
+        )
+
+    def test_a_blank_provider_does_not_block_the_chain(self):
+        # Nothing recorded means nothing known; refusing to chain would make
+        # every unlabelled exchange useless.
+        make("100", Currency.BYN, "28.84", Currency.EUR)
+        make("14.02", Currency.EUR, "5000", Currency.HUF)
+        paths = best_paths(Exchange.objects.all(), Currency.BYN, Currency.HUF)
+        self.assertEqual(len(paths), 1)
+
+
+class SavedRouteContinuityTests(TestCase):
+    """A saved route obeys the same rule the router does.
+
+    Pricing a chain that best_paths would refuse to build tells the user a
+    number for a conversion they cannot perform.
+    """
+
+    def test_a_cross_provider_chain_is_not_priced(self):
+        steps = [
+            make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
+            make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
+        ]
+        with self.assertRaises(ValueError):
+            chain_rate(steps)
+
+    def test_the_error_names_the_two_providers(self):
+        steps = [
+            make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
+            make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
+        ]
+        with self.assertRaises(ValueError) as ctx:
+            chain_rate(steps)
+        self.assertIn("Белинвестбанк", str(ctx.exception))
+        self.assertIn("Prior", str(ctx.exception))
+
+    def test_a_same_provider_chain_still_prices(self):
+        steps = [
+            make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
+            make("14.02", Currency.EUR, "5000", Currency.HUF, "Prior"),
+        ]
+        self.assertGreater(chain_rate(steps), 0)
+
+    def test_an_unlabelled_leg_still_chains(self):
+        steps = [
+            make("60000", Currency.RUB, "2140.43", Currency.BYN),
+            make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
+        ]
+        self.assertGreater(chain_rate(steps), 0)
+
+    def test_the_dashboard_marks_such_a_route_broken(self):
+        from .suggestions import affected_routes
+
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        route = Route.objects.create(name="mixed")
+        for i, e in enumerate([a, b]):
+            RouteStep.objects.create(route=route, exchange=e, position=i)
+        item = affected_routes(a)[0]
+        self.assertTrue(item["broken"])
+        self.assertIsNone(item["rate"])
+
+
+class TransferTests(TestCase):
+    """Moving money between your own accounts, in one currency.
+
+    A transfer is not a conversion, so it carries a provider on each end
+    ("Белинвестбанк→Prior") and may keep the same currency on both sides.
+    """
+
+    def test_a_transfer_may_keep_the_same_currency(self):
+        form = ExchangeForm(
+            data={
+                "spent_amount": "1000",
+                "spent_currency": Currency.BYN,
+                "received_amount": "1000",
+                "received_currency": Currency.BYN,
+                "provider": "Белинвестбанк→Prior",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_a_single_bank_transfer_is_also_valid(self):
+        # Naming both ends says which accounts; it is not a requirement.
+        form = ExchangeForm(
+            data={
+                "spent_amount": "1000",
+                "spent_currency": Currency.BYN,
+                "received_amount": "1000",
+                "received_currency": Currency.BYN,
+                "provider": "Prior",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_a_transfer_bridges_two_providers(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк→Prior")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR)
+        self.assertEqual(len(paths), 1)
+
+    def test_a_transfer_does_not_bridge_the_wrong_way(self):
+        # Белинвестбанк→Prior moves money one way only.
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк→Prior")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Белинвестбанк")
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR)
+        self.assertEqual(len(paths), 0)
+
+    def test_a_transfer_with_a_fee_costs_something(self):
+        steps = [
+            make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
+            make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк→Prior"),
+            make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
+        ]
+        lossless = (Decimal("2140.43") / Decimal("60000")) * (
+            Decimal("28.84") / Decimal("100")
+        )
+        self.assertLess(chain_rate(steps), lossless)
+
+
+class SameCurrencyCostTests(TestCase):
+    """A transfer in one currency is a real cost and must be recordable.
+
+    Banks charge to move money, including between accounts in the same
+    currency. Refusing the row would hide exactly the fee this app exists to
+    surface, so any same-currency row is accepted; naming both ends is a way to
+    say which accounts, not a condition of being allowed to record it.
+    """
+
+    def test_a_plain_same_currency_transfer_is_accepted(self):
+        form = ExchangeForm(
+            data={
+                "spent_amount": "1000",
+                "spent_currency": Currency.BYN,
+                "received_amount": "995",
+                "received_currency": Currency.BYN,
+                "provider": "Prior",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_a_same_currency_transfer_with_no_bank_is_accepted(self):
+        form = ExchangeForm(
+            data={
+                "spent_amount": "1000",
+                "spent_currency": Currency.BYN,
+                "received_amount": "995",
+                "received_currency": Currency.BYN,
+                "provider": "",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_the_commission_shows_up_in_the_rate(self):
+        e = make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк→Prior")
+        self.assertLess(e.rate, Decimal("1"))
+
+    def test_a_fee_bearing_transfer_lowers_the_whole_chain(self):
+        steps = [
+            make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
+            make("1000", Currency.BYN, "995", Currency.BYN, "Белинвестбанк→Prior"),
+            make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
+        ]
+        free = (Decimal("2140.43") / Decimal("60000")) * (
+            Decimal("28.84") / Decimal("100")
+        )
+        self.assertLess(chain_rate(steps), free)
+
+    def test_a_single_bank_same_currency_row_still_routes(self):
+        # One bank moving your own money between its own accounts.
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        make("1000", Currency.BYN, "995", Currency.BYN, "Prior")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR)
+        self.assertGreaterEqual(len(paths), 1)
+
+
+class TransferDedupTests(TestCase):
+    """A transfer must not manufacture a duplicate of an existing route.
+
+    Starting a walk with a transfer assumes the funds already sit at its source
+    bank, which nothing established. The chain that simply starts at the right
+    bank is the same route, so offering both is noise.
+    """
+
+    def setUp(self):
+        make("1000", Currency.BYN, "1000", Currency.BYN, "Белинвестбанк→Prior")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        make("14.02", Currency.EUR, "5000", Currency.HUF, "Prior")
+
+    def test_a_leading_transfer_does_not_duplicate_the_route(self):
+        paths = best_paths(Exchange.objects.all(), Currency.BYN, Currency.HUF)
+        self.assertEqual(len(paths), 1)
+
+    def test_the_surviving_route_is_the_direct_one(self):
+        paths = best_paths(Exchange.objects.all(), Currency.BYN, Currency.HUF)
+        self.assertFalse(is_transfer(paths[0].legs[0].exchange))
+
+    def test_a_transfer_still_bridges_mid_chain(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        paths = best_paths(Exchange.objects.all(), Currency.RUB, Currency.HUF)
+        self.assertEqual(len(paths), 1)
+        self.assertTrue(any(is_transfer(l.exchange) for l in paths[0].legs))

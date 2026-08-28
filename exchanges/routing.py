@@ -80,6 +80,36 @@ class Option:
         return self.path.legs
 
 
+# A transfer names both ends of a move — "Белинвестбанк→Prior" — because the
+# money leaves one account and lands in another. A plain conversion names one
+# bank, which is both where the funds came from and where they end up.
+TRANSFER_SEP = "→"
+
+
+def provider_ends(exchange: Exchange) -> tuple[str, str]:
+    """Where an exchange takes funds from, and where it leaves them."""
+    src = (exchange.provider or "").strip()
+    dst = (getattr(exchange, "received_provider", "") or "").strip()
+    if dst:
+        return src, dst
+    # Legacy rows wrote both ends into one string before the destination had a
+    # field of its own; still read them so old data keeps routing.
+    if TRANSFER_SEP in src:
+        first, _, second = src.partition(TRANSFER_SEP)
+        return first.strip(), second.strip()
+    return src, src
+
+
+def is_transfer(exchange: Exchange) -> bool:
+    """A move within one currency rather than a conversion.
+
+    Keyed on the currencies, not the name: a bank moving money between its own
+    accounts is as much a transfer as one crossing between two banks, and both
+    can charge for it.
+    """
+    return exchange.spent_currency == exchange.received_currency
+
+
 def chain_rate(exchanges: Sequence[Exchange]) -> Decimal:
     """Compound rate across a connected chain of exchanges."""
     if not exchanges:
@@ -92,6 +122,16 @@ def chain_rate(exchanges: Sequence[Exchange]) -> Decimal:
                 f"chain is broken: {prev.received_currency} does not feed "
                 f"{nxt.spent_currency}"
             )
+        # Same currency is not the same money: a balance at one bank cannot be
+        # spent at another without a transfer nobody recorded. A leg with no
+        # provider is unknown rather than contradictory, so it passes.
+        held_by = provider_ends(prev)[1]
+        spent_by = provider_ends(nxt)[0]
+        if held_by and spent_by and held_by != spent_by:
+            raise ValueError(
+                f"chain is broken: {prev.received_currency} is held at "
+                f"{held_by}, not {spent_by}"
+            )
     for exchange in exchanges:
         total *= exchange.rate
     return total.quantize(QUANT_RATE)
@@ -103,6 +143,13 @@ def best_paths(
     """Every chain from base to target, best rate first.
 
     A currency is never visited twice, so cycles cannot produce endless walks.
+
+    A chain may only continue where the money actually is: USD at one bank is a
+    different account from USD at another, and no transfer between them is
+    known unless the user recorded one. So each leg must start at the provider
+    the previous leg paid out to. An exchange with no provider recorded is
+    treated as connecting freely — nothing is known either way, and refusing to
+    chain it would make every unlabelled record useless.
     """
     if base == target:
         return []
@@ -113,12 +160,35 @@ def best_paths(
 
     found: list[Path] = []
 
-    def walk(currency: str, visited: tuple[str, ...], legs: tuple[Leg, ...]) -> None:
+    def continues(exchange: Exchange, holder: str | None) -> bool:
+        """Can funds held at `holder` be spent on this exchange?
+
+        Mirrors the same-provider rule chain_rate enforces, applied while
+        walking so an impossible branch is never explored in the first place.
+        """
+        if holder is None:
+            return True
+        here = provider_ends(exchange)[0]
+        return not here or here == holder
+
+    def walk(
+        currency: str,
+        visited: tuple[str, ...],
+        legs: tuple[Leg, ...],
+        holder: str | None,
+    ) -> None:
         if len(legs) >= max_legs:
             return
         for exchange in edges.get(currency, ()):
+            if not continues(exchange, holder):
+                continue
+            # A transfer moves funds that are already somewhere. With no holder
+            # established there is nothing to move, and taking it would only
+            # duplicate the chain that starts at the destination bank outright.
+            if holder is None and is_transfer(exchange):
+                continue
             nxt = exchange.received_currency
-            if nxt in visited:
+            if nxt in visited and not is_transfer(exchange):
                 continue
             extended = legs + (Leg(exchange),)
             if nxt == target:
@@ -126,9 +196,12 @@ def best_paths(
                 # Reaching the target ends this branch: continuing would only
                 # add a detour that leaves and re-enters the target currency.
                 continue
-            walk(nxt, visited + (nxt,), extended)
+            # The payout now sits wherever this exchange was made. An
+            # unrecorded provider leaves that unknown, which frees the next
+            # leg rather than pinning it to the bank two hops back.
+            walk(nxt, visited + (nxt,), extended, provider_ends(exchange)[1] or None)
 
-    walk(base, (base,), ())
+    walk(base, (base,), (), None)
     found.sort(key=lambda p: p.rate, reverse=True)
     return found
 

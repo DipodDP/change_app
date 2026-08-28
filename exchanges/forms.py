@@ -69,10 +69,6 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
         cleaned = super().clean()
         spent = cleaned.get("spent_currency")
         received = cleaned.get("received_currency")
-        if spent and received and spent == received:
-            raise forms.ValidationError(
-                _("An exchange must convert between two different currencies.")
-            )
         if spent and received:
             self._reject_if_it_breaks_routes(spent, received)
         return cleaned
