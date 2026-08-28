@@ -38,14 +38,14 @@
   <div class="chain">
     {% for leg in option.legs %}
       {% if not hide_first or not forloop.first %}
-        <div class="hop">
-          <span class="hop-cur">{{ leg.exchange.spent_currency|symbol }}</span>
-          {% if leg.exchange.provider %}<span class="hop-via">{{ leg.exchange.provider }}</span>{% endif %}
-        </div>
+        <div class="hop"><span class="hop-cur">{{ leg.exchange.spent_currency|symbol }}</span></div>
+      {% endif %}
+      <span class="hop-edge">
+        {% if leg.exchange.provider %}<span class="hop-via">{{ leg.exchange.provider }}</span>{% endif %}
         <span class="hop-arrow" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </span>
-      {% endif %}
+      </span>
       {% if forloop.last %}
         <div class="hop"><span class="hop-cur">{{ leg.exchange.received_currency|symbol }}</span></div>
       {% endif %}

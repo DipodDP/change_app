@@ -288,16 +288,30 @@ input, select, button, textarea { font: inherit; color: inherit; }
 }
 
 .hop {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
   background: var(--bg-deep);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 6px 11px;
 }
 .hop-cur { font-family: var(--mono); font-size: 14px; font-weight: 600; }
-.hop-via { font-size: 11px; color: var(--ink-faint); }
+
+/* The bank sits on the edge between two currencies, not inside either chip:
+   it is what performs the conversion, so naming it on the arrow keeps it from
+   reading as a label on the currency it happens to start from. */
+.hop-edge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+}
+.hop-via {
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.2;
+  text-align: center;
+  max-width: 11ch;
+}
 
 .hop-arrow { color: var(--ink-faint); flex: none; display: flex; align-items: center; }
 

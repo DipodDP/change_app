@@ -1264,3 +1264,60 @@ class CurrencyLabelRenderingTests(SignedIn, TestCase):
         body = self.client.get(reverse("exchange-create")).content.decode()
         self.assertIn("EUR · €", body)
         self.assertNotIn("EUR · EUR", body)
+
+
+class ChainProviderPlacementTests(SignedIn, TestCase):
+    """A bank converts between two currencies, so it belongs on the edge."""
+
+    def setUp(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        make("100", Currency.BYN, "33.26", Currency.USD, "Белинвестбанк")
+        make("16.47", Currency.USD, "5800", "AMD", "Белинвестбанк")
+
+    def _chain(self):
+        response = self.client.get(
+            reverse("dashboard"),
+            {"mode": "send", "amount": "100", "base": "RUB", "target": "AMD"},
+        )
+        body = response.content.decode()
+        start = body.index('class="chain"')
+        return body[start : body.index("</article>", start)]
+
+    def test_every_currency_in_the_path_is_shown(self):
+        chain = self._chain()
+        for symbol in ["₽", "BYN", "$", "֏"]:
+            self.assertIn(symbol, chain)
+
+    def test_each_bank_sits_between_the_currencies_it_connects(self):
+        chain = self._chain()
+        # Freedom converts USD into AMD, so it must render after the $ chip
+        # and before the ֏ chip rather than hanging off the end.
+        last_bank = chain.rindex("Белинвестбанк")
+        self.assertLess(chain.index("$"), last_bank)
+        self.assertLess(last_bank, chain.index("֏"))
+
+    def test_a_bank_is_marked_up_as_an_edge_not_a_hop(self):
+        import re
+
+        chain = self._chain()
+        self.assertIn("hop-via", chain)
+        # A provider nested inside a currency chip reads as a label on that
+        # currency; it has to stand on its own between two chips instead.
+        hops = re.findall(r'<div class="hop">(.*?)</div>', chain, re.S)
+        self.assertTrue(hops)
+        for hop in hops:
+            self.assertNotIn("hop-via", hop)
+
+    def test_the_chain_alternates_currency_then_bank(self):
+        import re
+
+        chain = self._chain()
+        kinds = [m.group(1) for m in re.finditer(r'class="(hop-cur|hop-via)"', chain)]
+        # RUB [bank] BYN [bank] USD [bank] AMD
+        self.assertEqual(
+            kinds,
+            [
+                "hop-cur", "hop-via", "hop-cur", "hop-via",
+                "hop-cur", "hop-via", "hop-cur",
+            ],
+        )

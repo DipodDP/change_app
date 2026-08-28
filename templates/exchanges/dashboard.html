@@ -143,11 +143,11 @@
           </div>
           <div class="chain">
             {% for step in item.steps %}
-              <div class="hop">
-                <span class="hop-cur">{{ step.spent_currency|symbol }}</span>
+              <div class="hop"><span class="hop-cur">{{ step.spent_currency|symbol }}</span></div>
+              <span class="hop-edge">
                 {% if step.provider %}<span class="hop-via">{{ step.provider }}</span>{% endif %}
-              </div>
-              <span class="hop-arrow" aria-hidden="true">→</span>
+                <span class="hop-arrow" aria-hidden="true">→</span>
+              </span>
               {% if forloop.last %}<div class="hop"><span class="hop-cur">{{ step.received_currency|symbol }}</span></div>{% endif %}
             {% endfor %}
           </div>
