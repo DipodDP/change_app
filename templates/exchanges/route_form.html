@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load i18n money %}
+
+{% block title %}{% trans "New route" %} · {% trans "Change" %}{% endblock %}
+
+{% block content %}
+<section class="card" aria-labelledby="rf-h">
+  <div class="card-head">
+    <h2 id="rf-h">
+      {% if route %}{% trans "Edit route" %}{% if derived_name %} · <span class="route-title">{{ derived_name }}</span>{% endif %}
+      {% else %}{% trans "Save a route" %}{% endif %}
+    </h2>
+    <span class="hint">{% trans "Build the chain step by step; only steps that connect are offered." %}</span>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="step_ids" id="id_step_ids" value="{{ step_ids }}">
+
+    {% if form.non_field_errors %}
+      <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% for e in form.step_ids.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+
+    {# ---- the chain so far ---- #}
+    {% if chosen %}
+      <ol class="steps">
+        {% for step in chosen %}
+          <li class="step">
+            <span class="step-label">
+              {{ step.spent_currency|symbol }} → {{ step.received_currency|symbol }}{% if step.provider %} · {{ step.provider }}{% endif %}
+            </span>
+            <button type="submit" name="action" value="remove" formnovalidate
+                    class="btn-reset step-drop js-remove" data-pk="{{ step.pk }}"
+                    aria-label="{% blocktrans with s=step %}Remove {{ s }}{% endblocktrans %}">✕</button>
+          </li>
+        {% endfor %}
+      </ol>
+      <dl class="total">
+        <dt>{% trans "Through rate" %}</dt>
+        <dd>{{ through_rate|rate }}</dd>
+      </dl>
+    {% endif %}
+
+    {# ---- candidates ---- #}
+    <div class="builder" style="margin-top:14px">
+      <span class="picks-label">
+        {% if tail %}{% blocktrans with sign=tail|symbol %}continues from {{ sign }}:{% endblocktrans %}
+        {% else %}{% trans "starts the route:" %}{% endif %}
+      </span>
+
+      {% if fitting %}
+        <div class="picks-row">
+          {% for e in fitting %}
+            <button type="submit" name="action" value="add" formnovalidate
+                    class="chip is-mono js-add" data-pk="{{ e.pk }}">
+              + {{ e.spent_currency|symbol }} → {{ e.received_currency|symbol }}{% if e.provider %} · {{ e.provider }}{% endif %}
+            </button>
+          {% endfor %}
+        </div>
+      {% else %}
+        <span class="helptext">{% trans "Nothing else connects from here." %}</span>
+      {% endif %}
+
+      {% if not_fitting %}
+        <div class="picks-row" style="margin-top:6px">
+          {% for e in not_fitting %}
+            <span class="chip is-mono is-dead" aria-disabled="true"
+                  title="{% trans "Does not connect to the current chain" %}">
+              {{ e.spent_currency|symbol }} → {{ e.received_currency|symbol }}{% if e.provider %} · {{ e.provider }}{% endif %}
+            </span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{% if route %}{% trans "Save changes" %}{% else %}{% trans "Save route" %}{% endif %}</button>
+      <a class="btn btn-quiet" href="{% url 'dashboard' %}">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var field = document.getElementById('id_step_ids');
+
+  function ids() {
+    return field.value ? field.value.split(',').filter(Boolean) : [];
+  }
+
+  // Chips submit the form; rewrite the hidden list first so the server sees
+  // the intended chain. Order of clicks is the order of the route.
+  document.querySelectorAll('.js-add').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var list = ids();
+      list.push(chip.dataset.pk);
+      field.value = list.join(',');
+    });
+  });
+
+  document.querySelectorAll('.js-remove').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      field.value = ids().filter(function (id) { return id !== btn.dataset.pk; }).join(',');
+    });
+  });
+
+  document.querySelectorAll('.js-fill').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var target = document.getElementById(chip.dataset.target);
+      if (target) { target.value = chip.dataset.value; target.focus(); }
+    });
+  });
+})();
+</script>
+{% endblock %}

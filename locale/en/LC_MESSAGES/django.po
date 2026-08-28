@@ -1,0 +1,328 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-27 14:18+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: exchanges/forms.py:38
+msgid "I spent"
+msgstr ""
+
+#: exchanges/forms.py:39
+msgid "Spent currency"
+msgstr ""
+
+#: exchanges/forms.py:40
+msgid "I received"
+msgstr ""
+
+#: exchanges/forms.py:41
+msgid "Received currency"
+msgstr ""
+
+#: exchanges/forms.py:42
+msgid "Bank or service"
+msgstr ""
+
+#: exchanges/forms.py:52
+msgid "e.g. Prior, Wise, Revolut"
+msgstr ""
+
+#: exchanges/forms.py:62
+msgid "An exchange must convert between two different currencies."
+msgstr ""
+
+#: exchanges/forms.py:71
+msgid "Amount"
+msgstr ""
+
+#: exchanges/forms.py:79
+msgid "From"
+msgstr ""
+
+#: exchanges/forms.py:82
+msgid "To"
+msgstr ""
+
+#: exchanges/forms.py:88
+msgid "Pick two different currencies to compare."
+msgstr ""
+
+#: exchanges/forms.py:96
+msgid "Exchanges in order"
+msgstr ""
+
+#: exchanges/forms.py:104
+msgid "Route name"
+msgstr ""
+
+#: exchanges/forms.py:106
+msgid "e.g. Prior–OTP"
+msgstr ""
+
+#: exchanges/models.py:30
+msgid "spent amount"
+msgstr ""
+
+#: exchanges/models.py:36
+msgid "spent currency"
+msgstr ""
+
+#: exchanges/models.py:39
+msgid "received amount"
+msgstr ""
+
+#: exchanges/models.py:45
+msgid "received currency"
+msgstr ""
+
+#: exchanges/models.py:47
+msgid "provider"
+msgstr ""
+
+#: exchanges/models.py:52
+msgid "exchange"
+msgstr ""
+
+#: exchanges/models.py:53
+msgid "exchanges"
+msgstr ""
+
+#: exchanges/models.py:74
+msgid "name"
+msgstr ""
+
+#: exchanges/models.py:80
+msgid "route"
+msgstr ""
+
+#: exchanges/models.py:81
+msgid "routes"
+msgstr ""
+
+#: exchanges/views.py:75
+msgid "Exchange recorded."
+msgstr ""
+
+#: exchanges/views.py:87
+msgid "Exchange updated."
+msgstr ""
+
+#: exchanges/views.py:100
+msgid "Exchange deleted."
+msgstr ""
+
+#: exchanges/views.py:115
+msgid "Route saved."
+msgstr ""
+
+#: exchanges/views.py:124
+msgid "Route deleted."
+msgstr ""
+
+#: templates/base.html:6 templates/base.html:21
+#: templates/exchanges/confirm_delete.html:4
+#: templates/exchanges/exchange_form.html:4
+#: templates/exchanges/route_form.html:4
+msgid "Change"
+msgstr ""
+
+#: templates/base.html:27
+msgid "Interface language"
+msgstr ""
+
+#: templates/exchanges/confirm_delete.html:4
+msgid "Confirm deletion"
+msgstr ""
+
+#: templates/exchanges/confirm_delete.html:9
+msgid "Delete this?"
+msgstr ""
+
+#: templates/exchanges/confirm_delete.html:12
+#, python-format
+msgid "“%(item)s” will be removed permanently."
+msgstr ""
+
+#: templates/exchanges/confirm_delete.html:13
+msgid "Any saved route that used it will lose that step."
+msgstr ""
+
+#: templates/exchanges/confirm_delete.html:18
+msgid "Yes, delete"
+msgstr ""
+
+#: templates/exchanges/confirm_delete.html:19
+msgid "Keep it"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:8
+msgid "Compare routes"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:9
+msgid ""
+"Rates come from your own recorded exchanges — commission already included."
+msgstr ""
+
+#: templates/exchanges/dashboard.html:45
+msgid "Compare"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:58
+msgid "No exchanges recorded yet"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:59
+msgid ""
+"Add the conversions you have actually made — what you handed over and what "
+"you got back. Change works out the real rate, chains them together, and "
+"tells you which way loses the least."
+msgstr ""
+
+#: templates/exchanges/dashboard.html:60 templates/exchanges/dashboard.html:125
+#: templates/exchanges/exchange_form.html:9
+msgid "Record an exchange"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:67
+#, python-format
+msgid "%(amount)s %(base)s → %(target)s"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:69
+#, python-format
+msgid "%(n)s route found"
+msgid_plural "%(n)s routes found"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/exchanges/dashboard.html:81
+msgid "Cheapest"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:95
+#, python-format
+msgid "%(amt)s %(sign)s less"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:97
+msgid "best payout"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:123
+msgid "No route between these currencies"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:124
+msgid ""
+"Your recorded exchanges do not chain from one to the other yet. Add the "
+"missing leg and it will appear here."
+msgstr ""
+
+#: templates/exchanges/dashboard.html:132
+msgid "Saved routes"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:133
+#: templates/exchanges/dashboard.html:175 templates/exchanges/route_form.html:4
+msgid "New route"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:143
+msgid "Steps do not connect"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:151
+#: templates/exchanges/exchange_form.html:55
+msgid "Delete"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:173
+msgid "Your exchanges"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:176
+#: templates/exchanges/exchange_form.html:4
+msgid "Record exchange"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:182
+msgid "Every exchange you have recorded, with its effective rate"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:185
+msgid "Spent"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:186
+msgid "Received"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:187
+msgid "Via"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:188
+msgid "Rate"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:189
+msgid "Actions"
+msgstr ""
+
+#: templates/exchanges/dashboard.html:201
+msgid "Edit"
+msgstr ""
+
+#: templates/exchanges/exchange_form.html:4
+#: templates/exchanges/exchange_form.html:9
+msgid "Edit exchange"
+msgstr ""
+
+#: templates/exchanges/exchange_form.html:10
+msgid "Enter what you actually paid and received — the rate follows."
+msgstr ""
+
+#: templates/exchanges/exchange_form.html:48
+msgid "Optional. Naming the bank makes routes easier to tell apart."
+msgstr ""
+
+#: templates/exchanges/exchange_form.html:52
+msgid "Save"
+msgstr ""
+
+#: templates/exchanges/exchange_form.html:53
+#: templates/exchanges/route_form.html:35
+msgid "Cancel"
+msgstr ""
+
+#: templates/exchanges/route_form.html:9
+msgid "Save a route"
+msgstr ""
+
+#: templates/exchanges/route_form.html:10
+msgid "Name a chain you use often, so it is easy to recognise later."
+msgstr ""
+
+#: templates/exchanges/route_form.html:29
+msgid "Hold Cmd or Ctrl to pick several. They are chained in the order listed."
+msgstr ""
+
+#: templates/exchanges/route_form.html:34
+msgid "Save route"
+msgstr ""

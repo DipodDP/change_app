@@ -1,0 +1,54 @@
+{% load i18n money %}
+{# One ranked option. `hide_first` drops the opening hop when the group already shows it. #}
+<article class="route {% if option.is_best %}is-best{% endif %}">
+  <div class="route-top">
+    <div>
+      <div class="route-rank">
+        {% if option.is_best %}
+          <span class="tag tag-best">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3 6.9 7.1.6-5.4 4.7 1.6 7-6.3-3.8-6.3 3.8 1.6-7L2 9.5l7.1-.6z"/></svg>
+            {% if is_get_mode %}{% trans "Cheapest" %}{% else %}{% trans "Best rate" %}{% endif %}
+          </span>
+        {% else %}
+          <span class="tag tag-cost">+{{ option.penalty_pct }}%</span>
+        {% endif %}
+      </div>
+      <p class="rate-line" style="margin:8px 0 0">
+        1 {{ query.base|symbol }} = <b>{{ option.rate|rate }} {{ query.target|symbol }}</b>
+      </p>
+    </div>
+
+    <div class="payout">
+      {% if is_get_mode %}
+        <div class="payout-amt">{{ option.payout|money }} {{ query.base|symbol }}</div>
+        <div class="payout-sub">
+          {% if option.is_best %}{% trans "lowest cost" %}
+          {% else %}{% blocktrans with amt=option.shortfall|money sign=query.base|symbol %}{{ amt }} {{ sign }} more{% endblocktrans %}{% endif %}
+        </div>
+      {% else %}
+        <div class="payout-amt">{{ option.payout|money }} {{ query.target|symbol }}</div>
+        <div class="payout-sub">
+          {% if option.is_best %}{% trans "best payout" %}
+          {% else %}{% blocktrans with amt=option.shortfall|money sign=query.target|symbol %}{{ amt }} {{ sign }} less{% endblocktrans %}{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="chain">
+    {% for leg in option.legs %}
+      {% if not hide_first or not forloop.first %}
+        <div class="hop">
+          <span class="hop-cur">{{ leg.exchange.spent_currency|symbol }}</span>
+          {% if leg.exchange.provider %}<span class="hop-via">{{ leg.exchange.provider }}</span>{% endif %}
+        </div>
+        <span class="hop-arrow" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      {% endif %}
+      {% if forloop.last %}
+        <div class="hop"><span class="hop-cur">{{ leg.exchange.received_currency|symbol }}</span></div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</article>

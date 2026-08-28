@@ -1,0 +1,14 @@
+[project]
+name = "change"
+version = "0.1.0"
+description = "Find the cheapest currency conversion route through exchanges you have actually made"
+requires-python = ">=3.11"
+dependencies = [
+    "django>=5.0",
+]
+
+[dependency-groups]
+dev = []
+
+[tool.uv]
+package = false

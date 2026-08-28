@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign in" %} · {% trans "Change" %}{% endblock %}
+
+{% block content %}
+<section class="card card-narrow" aria-labelledby="login-h">
+  <div class="card-head">
+    <h2 id="login-h">{% trans "Sign in" %}</h2>
+    <span class="hint">{% trans "Your exchanges and routes are private to your account." %}</span>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <ul class="errorlist">
+        {% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    <div class="field">
+      <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+      {{ form.username }}
+      {% for e in form.username.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+    </div>
+
+    <div class="field" style="margin-top:14px">
+      <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+      {{ form.password }}
+      {% for e in form.password.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{% trans "Sign in" %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
