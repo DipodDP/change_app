@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% load i18n money %}
 
+{% block page_title %}{% trans "Your exchanges and routes" %}{% endblock %}
+
 {% block content %}
 
 <section class="card" aria-labelledby="q-h">
@@ -11,9 +13,9 @@
 
   <div class="modes" role="group" aria-label="{% trans "Direction" %}">
     <a class="pill" href="?mode=send&amp;base={{ query.base }}&amp;target={{ query.target }}&amp;amount={{ query.amount }}"
-       aria-pressed="{% if not is_get_mode %}true{% else %}false{% endif %}">{% trans "I send" %}</a>
+       {% if not is_get_mode %}aria-current="true"{% endif %}>{% trans "I send" %}</a>
     <a class="pill" href="?mode=get&amp;base={{ query.base }}&amp;target={{ query.target }}&amp;amount={{ query.amount }}"
-       aria-pressed="{% if is_get_mode %}true{% else %}false{% endif %}">{% trans "I want to get" %}</a>
+       {% if is_get_mode %}aria-current="true"{% endif %}>{% trans "I want to get" %}</a>
   </div>
 
   <form method="get" class="query">
@@ -71,10 +73,14 @@
   </section>
 
 {% elif results %}
-  <section class="card" aria-labelledby="r-h">
+  <section class="card card-result" aria-labelledby="r-h">
     <div class="card-head">
       <h2 id="r-h">
-        {% blocktrans with amount=query.amount|money base=query.base target=query.target %}{{ amount }} {{ base }} → {{ target }}{% endblocktrans %}
+        {% if is_get_mode %}
+          {% blocktrans with amount=query.amount|money target=query.target|symbol base=query.base %}To receive {{ amount }} {{ target }}, paying with {{ base }}{% endblocktrans %}
+        {% else %}
+          {% blocktrans with amount=query.amount|money base=query.base|symbol target=query.target|symbol %}{{ amount }} {{ base }} → {{ target }}{% endblocktrans %}
+        {% endif %}
       </h2>
       <span class="hint">{% blocktrans count n=results|length %}{{ n }} route found{% plural %}{{ n }} routes found{% endblocktrans %}</span>
     </div>
@@ -105,6 +111,15 @@
     </div>
   </section>
 
+{% elif blocked %}
+  <section class="empty">
+    <h2>{% trans "The chain is there, but the money is not" %}</h2>
+    <p>
+      {% blocktrans with cur=blocked.currency|symbol frm=blocked.from_provider to=blocked.to_provider %}A route exists, but it leaves {{ cur }} at {{ frm }} and the next leg spends it at {{ to }}. Record the transfer between them and this route will appear.{% endblocktrans %}
+    </p>
+    <a class="btn btn-primary" href="{% url 'exchange-create' %}">{% trans "Record the transfer" %}</a>
+  </section>
+
 {% else %}
   <section class="empty">
     <h2>{% trans "No route between these currencies" %}</h2>
@@ -125,9 +140,9 @@
           <div class="route-top">
             <div>
               <strong>{{ item.route.name }}</strong>
-              <p class="rate-line" style="margin:6px 0 0">
+              <p class="rate-line mt-1">
                 {% if item.broken %}
-                  <span style="color:var(--red)">{% trans "Steps do not connect" %}</span>
+                  <span class="is-broken">{% trans "Steps do not connect" %}</span>
                 {% else %}
                   1 {{ item.from_currency|symbol }} = <b>{{ item.rate|rate }} {{ item.to_currency|symbol }}</b>
                 {% endif %}
@@ -158,10 +173,10 @@
 {% endif %}
 
 {% if exchanges %}
-  <section class="card" aria-labelledby="l-h">
+  <section class="card card-ledger" aria-labelledby="l-h">
     <div class="card-head">
       <h2 id="l-h">{% trans "Your exchanges" %}</h2>
-      <div style="display:flex;gap:8px">
+      <div class="btn-pair">
         {% if not saved_routes %}<a class="btn btn-ghost btn-sm" href="{% url 'route-create' %}">{% trans "New route" %}</a>{% endif %}
         <a class="btn btn-primary btn-sm" href="{% url 'exchange-create' %}">{% trans "Record exchange" %}</a>
       </div>
@@ -183,17 +198,17 @@
           {% for row in rows %}
             {% with e=row.exchange %}
             <tr>
-              <td class="num">{{ e.spent_amount|money }} {{ e.spent_currency|symbol }}</td>
-              <td class="num">{{ e.received_amount|money }} {{ e.received_currency|symbol }}</td>
-              <td>
+              <td class="num" data-label="{% trans "Spent" %}">{{ e.spent_amount|money }} {{ e.spent_currency|symbol }}</td>
+              <td class="num" data-label="{% trans "Received" %}">{{ e.received_amount|money }} {{ e.received_currency|symbol }}</td>
+              <td data-label="{% trans "Via" %}">
                 {{ e.provider|default:"—" }}
                 <span class="used">
                   {% if row.used %}{% blocktrans count n=row.used %}in {{ n }} route{% plural %}in {{ n }} routes{% endblocktrans %}
                   {% else %}{% trans "not in any route" %}{% endif %}
                 </span>
               </td>
-              <td class="right num">1 {{ e.spent_currency|symbol }} = {{ e.rate|rate }} {{ e.received_currency|symbol }}</td>
-              <td class="right">
+              <td class="right num" data-label="{% trans "Rate" %}">1 {{ e.spent_currency|symbol }} = {{ e.rate|rate }} {{ e.received_currency|symbol }}</td>
+              <td class="right cell-actions-wrap">
                 <div class="cell-actions">
                   <a class="btn btn-ghost btn-sm" href="{% url 'exchange-edit' e.pk %}">{% trans "Edit" %}</a>
                 </div>

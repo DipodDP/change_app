@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-28 20:56+0000\n"
+"POT-Creation-Date: 2026-09-07 08:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -57,20 +57,19 @@ msgid ""
 "This change would break the saved route %(names)s. Edit or delete the route "
 "first."
 msgstr ""
-"Это изменение сломает сохранённый маршрут %(names)s. Сначала измените или "
-"удалите маршрут.Это изменение разорвёт сохранённый маршрут %(names)s. "
-"Сначала измените или удалите маршрут."
+"Это изменение разорвёт сохранённый маршрут %(names)s. Сначала измените или "
+"удалите маршрут."
 
-#: exchanges/forms.py:135 templates/exchanges/dashboard.html:14
-#: templates/exchanges/dashboard.html:23
+#: exchanges/forms.py:135 templates/exchanges/dashboard.html:16
+#: templates/exchanges/dashboard.html:25
 msgid "I send"
 msgstr "Отправляю"
 
-#: exchanges/forms.py:136 templates/exchanges/dashboard.html:16
+#: exchanges/forms.py:136 templates/exchanges/dashboard.html:18
 msgid "I want to get"
 msgstr "Хочу получить"
 
-#: exchanges/forms.py:140 templates/exchanges/dashboard.html:12
+#: exchanges/forms.py:140 templates/exchanges/dashboard.html:14
 msgid "Direction"
 msgstr "Направление"
 
@@ -78,11 +77,11 @@ msgstr "Направление"
 msgid "Amount"
 msgstr "Сумма"
 
-#: exchanges/forms.py:155 templates/exchanges/dashboard.html:33
+#: exchanges/forms.py:155 templates/exchanges/dashboard.html:35
 msgid "From"
 msgstr "Из"
 
-#: exchanges/forms.py:158 templates/exchanges/dashboard.html:46
+#: exchanges/forms.py:158 templates/exchanges/dashboard.html:48
 msgid "To"
 msgstr "В"
 
@@ -154,58 +153,86 @@ msgstr "маршрут"
 msgid "routes"
 msgstr "маршруты"
 
-#: exchanges/views.py:156
+#: exchanges/views.py:175
 msgid "Exchange recorded."
 msgstr "Обмен записан."
 
-#: exchanges/views.py:173
+#: exchanges/views.py:192
 msgid "Exchange updated."
 msgstr "Обмен обновлён."
 
-#: exchanges/views.py:177
-#, python-format
-msgid "Renamed %(names)s to match the new bank."
-msgstr "Переименовано в %(names)s под новый банк."
-
 #: exchanges/views.py:197
+#, python-format
+msgid "Renamed the route %(names)s to match the new bank."
+msgid_plural "Renamed the routes %(names)s to match the new bank."
+msgstr[0] "Маршрут %(names)s переименован под новый банк."
+msgstr[1] "Маршруты %(names)s переименованы под новый банк."
+msgstr[2] "Маршруты %(names)s переименованы под новый банк."
+msgstr[3] "Маршруты %(names)s переименованы под новый банк."
+
+#: exchanges/views.py:220
 msgid "Exchange deleted."
 msgstr "Обмен удалён."
 
-#: exchanges/views.py:202
+#: exchanges/views.py:227
 #, python-format
-msgid "%(count)d route had no steps left and was removed."
-msgid_plural "%(count)d routes had no steps left and were removed."
-msgstr[0] "%(count)d маршрут остался без шагов и был удалён."
-msgstr[1] "%(count)d маршрута остались без шагов и были удалены."
-msgstr[2] "%(count)d маршрутов остались без шагов и были удалены."
-msgstr[3] "%(count)d маршрутов остались без шагов и были удалены."
+msgid "%(count)d saved route used only that exchange, so it is gone too."
+msgid_plural ""
+"%(count)d saved routes used only that exchange, so they are gone too."
+msgstr[0] ""
+"%(count)d сохранённый маршрут состоял только из этого обмена и удалён вместе "
+"с ним."
+msgstr[1] ""
+"%(count)d сохранённых маршрута состояли только из этого обмена и удалены "
+"вместе с ним."
+msgstr[2] ""
+"%(count)d сохранённых маршрутов состояли только из этого обмена и удалены "
+"вместе с ним."
+msgstr[3] ""
+"%(count)d сохранённых маршрутов состояли только из этого обмена и удалены "
+"вместе с ним."
 
-#: exchanges/views.py:251
+#: exchanges/views.py:278
 msgid "Unnamed route"
 msgstr "Маршрут без названия"
 
-#: exchanges/views.py:278
+#: exchanges/views.py:305
 msgid "Route saved."
 msgstr "Маршрут сохранён."
 
-#: exchanges/views.py:304
+#: exchanges/views.py:331
 msgid "Route updated."
 msgstr "Маршрут обновлён."
 
-#: exchanges/views.py:328
+#: exchanges/views.py:355
 msgid "Route deleted."
 msgstr "Маршрут удалён."
 
-#: exchanges/views.py:342
-msgid "All exchanges cleared."
-msgstr "Все обмены удалены."
+#: exchanges/views.py:384
+#, python-format
+msgid "Cleared %(count)d exchange, and every saved route."
+msgid_plural "Cleared %(count)d exchanges, and every saved route."
+msgstr[0] "Удалён %(count)d обмен и все сохранённые маршруты."
+msgstr[1] "Удалено %(count)d обмена и все сохранённые маршруты."
+msgstr[2] "Удалено %(count)d обменов и все сохранённые маршруты."
+msgstr[3] "Удалено %(count)d обменов и все сохранённые маршруты."
 
-#: exchanges/views.py:354
+#: exchanges/views.py:390
+#, python-format
+msgid "Cleared %(count)d exchange."
+msgid_plural "Cleared %(count)d exchanges."
+msgstr[0] "Удалён %(count)d обмен."
+msgstr[1] "Удалено %(count)d обмена."
+msgstr[2] "Удалено %(count)d обменов."
+msgstr[3] "Удалено %(count)d обменов."
+
+#: exchanges/views.py:417
 msgid "Demo data loaded."
 msgstr "Демо-данные загружены."
 
-#: templates/base.html:6 templates/base.html:21
+#: templates/base.html:6 templates/base.html:21 templates/base.html:62
 #: templates/exchanges/confirm_delete.html:4
+#: templates/exchanges/confirm_reset.html:4
 #: templates/exchanges/exchange_form.html:4
 #: templates/exchanges/route_form.html:4 templates/registration/login.html:4
 msgid "Change"
@@ -215,16 +242,15 @@ msgstr "Change"
 msgid "Clear all"
 msgstr "Очистить"
 
-#: templates/base.html:27
+#: templates/base.html:31
 msgid "Demo data"
 msgstr "Демо-данные"
 
-#: templates/base.html:32
-#, python-format
-msgid "Sign out %(who)s"
-msgstr "Выйти — %(who)s"
+#: templates/base.html:37
+msgid "Sign out"
+msgstr "Выйти"
 
-#: templates/base.html:39
+#: templates/base.html:44
 msgid "Interface language"
 msgstr "Язык интерфейса"
 
@@ -236,101 +262,160 @@ msgstr "Дешевле всего"
 msgid "Best rate"
 msgstr "Лучший курс"
 
-#: templates/exchanges/_route_card.html:25
-msgid "lowest cost"
-msgstr "дешевле всего"
+#: templates/exchanges/_route_card.html:32
+msgid "You pay"
+msgstr "Вы платите"
 
-#: templates/exchanges/_route_card.html:26
+#: templates/exchanges/_route_card.html:35
+msgid "cheapest of these routes"
+msgstr "самый дешёвый из найденных"
+
+#: templates/exchanges/_route_card.html:36
 #, python-format
 msgid "%(amt)s %(sign)s more"
 msgstr "на %(amt)s %(sign)s больше"
 
-#: templates/exchanges/_route_card.html:31
+#: templates/exchanges/_route_card.html:39
+msgid "You get"
+msgstr "Вы получаете"
+
+#: templates/exchanges/_route_card.html:42
 msgid "best payout"
 msgstr "лучший результат"
 
-#: templates/exchanges/_route_card.html:32
+#: templates/exchanges/_route_card.html:43
 #, python-format
 msgid "%(amt)s %(sign)s less"
 msgstr "на %(amt)s %(sign)s меньше"
 
 #: templates/exchanges/confirm_delete.html:4
+#: templates/exchanges/confirm_delete.html:6
 msgid "Confirm deletion"
 msgstr "Подтвердите удаление"
 
-#: templates/exchanges/confirm_delete.html:9
+#: templates/exchanges/confirm_delete.html:11
 msgid "Delete this?"
 msgstr "Удалить?"
 
-#: templates/exchanges/confirm_delete.html:12
+#: templates/exchanges/confirm_delete.html:14
 #, python-format
 msgid "“%(item)s” will be removed permanently."
 msgstr "«%(item)s» будет удалён навсегда."
 
-#: templates/exchanges/confirm_delete.html:13
+#: templates/exchanges/confirm_delete.html:15
 msgid "Any saved route that used it will lose that step."
 msgstr "Маршруты, где он использовался, потеряют этот шаг."
 
-#: templates/exchanges/confirm_delete.html:18
+#: templates/exchanges/confirm_delete.html:20
 msgid "Yes, delete"
 msgstr "Да, удалить"
 
-#: templates/exchanges/confirm_delete.html:19
+#: templates/exchanges/confirm_delete.html:21
 msgid "Keep it"
 msgstr "Оставить"
 
-#: templates/exchanges/dashboard.html:8
+#: templates/exchanges/confirm_reset.html:4
+#: templates/exchanges/confirm_reset.html:6
+#: templates/exchanges/confirm_reset.html:11
+msgid "Clear everything?"
+msgstr "Удалить все данные?"
+
+#: templates/exchanges/confirm_reset.html:15
+#, python-format
+msgid "%(n)s exchange"
+msgid_plural "%(n)s exchanges"
+msgstr[0] "%(n)s обмен"
+msgstr[1] "%(n)s обмена"
+msgstr[2] "%(n)s обменов"
+msgstr[3] "%(n)s обменов"
+
+#: templates/exchanges/confirm_reset.html:16
+#, python-format
+msgid "%(n)s saved route"
+msgid_plural "%(n)s saved routes"
+msgstr[0] "%(n)s сохранённый маршрут"
+msgstr[1] "%(n)s сохранённых маршрута"
+msgstr[2] "%(n)s сохранённых маршрутов"
+
+#: templates/exchanges/confirm_reset.html:17
+msgid "will be permanently deleted."
+msgstr "будут удалены безвозвратно."
+
+#: templates/exchanges/confirm_reset.html:19
+msgid ""
+"This cannot be undone, and there is no export. Your recorded rates are the "
+"only copy."
+msgstr ""
+"Это действие необратимо, выгрузки нет. Записанные курсы существуют только "
+"здесь."
+
+#: templates/exchanges/confirm_reset.html:25
+msgid "Yes, clear everything"
+msgstr "Да, удалить всё"
+
+#: templates/exchanges/confirm_reset.html:26
+msgid "Keep my data"
+msgstr "Оставить мои данные"
+
+#: templates/exchanges/dashboard.html:4
+msgid "Your exchanges and routes"
+msgstr "Мои обмены и маршруты"
+
+#: templates/exchanges/dashboard.html:10
 msgid "Compare routes"
 msgstr "Сравнить маршруты"
 
-#: templates/exchanges/dashboard.html:9
+#: templates/exchanges/dashboard.html:11
 msgid ""
 "Rates come from your own recorded exchanges — commission already included."
 msgstr "Курсы считаются из ваших обменов — комиссия уже внутри."
 
-#: templates/exchanges/dashboard.html:23
+#: templates/exchanges/dashboard.html:25
 msgid "I want to receive"
 msgstr "Хочу получить"
 
-#: templates/exchanges/dashboard.html:33
+#: templates/exchanges/dashboard.html:35
 msgid "Paying with"
 msgstr "Плачу в"
 
-#: templates/exchanges/dashboard.html:46
+#: templates/exchanges/dashboard.html:48
 msgid "To receive"
 msgstr "Получаю"
 
-#: templates/exchanges/dashboard.html:55
+#: templates/exchanges/dashboard.html:57
 msgid "Compare"
 msgstr "Сравнить"
 
-#: templates/exchanges/dashboard.html:68
+#: templates/exchanges/dashboard.html:70
 msgid "No exchanges recorded yet"
 msgstr "Обменов пока нет"
 
-#: templates/exchanges/dashboard.html:69
+#: templates/exchanges/dashboard.html:71
 msgid ""
 "Add the conversions you have actually made — what you handed over and what "
 "you got back. Change works out the real rate, chains them together, and "
 "tells you which way loses the least."
 msgstr ""
-"Добавьте обмены, которые вы действительно совершили — что отдали и что "
-"получили. Change посчитает реальный курс, соберёт цепочки и покажет, какой "
-"путь теряет меньше всего.Добавьте обмены, которые вы уже делали: сколько "
-"отдали и сколько получили. Change посчитает реальный курс, соберёт цепочки и "
-"покажет, какой путь теряет меньше всего."
+"Добавьте обмены, которые вы уже делали: сколько отдали и сколько получили. "
+"Change посчитает реальный курс, соберёт цепочки и покажет, какой путь теряет "
+"меньше всего."
 
-#: templates/exchanges/dashboard.html:70 templates/exchanges/dashboard.html:112
-#: templates/exchanges/exchange_form.html:9
+#: templates/exchanges/dashboard.html:72 templates/exchanges/dashboard.html:127
+#: templates/exchanges/exchange_form.html:11
 msgid "Record an exchange"
 msgstr "Записать обмен"
 
-#: templates/exchanges/dashboard.html:77
+#: templates/exchanges/dashboard.html:80
+#, python-format
+msgid "To receive %(amount)s %(target)s, paying with %(base)s"
+msgstr "Получить %(amount)s %(target)s, платя в %(base)s"
+
+#: templates/exchanges/dashboard.html:82
 #, python-format
 msgid "%(amount)s %(base)s → %(target)s"
 msgstr "%(amount)s %(base)s → %(target)s"
 
-#: templates/exchanges/dashboard.html:79
+#: templates/exchanges/dashboard.html:85
 #, python-format
 msgid "%(n)s route found"
 msgid_plural "%(n)s routes found"
@@ -339,80 +424,102 @@ msgstr[1] "%(n)s маршрута"
 msgstr[2] "%(n)s маршрутов"
 msgstr[3] "%(n)s маршрутов"
 
-#: templates/exchanges/dashboard.html:88
+#: templates/exchanges/dashboard.html:94
 msgid "common start"
 msgstr "общее начало"
 
-#: templates/exchanges/dashboard.html:110
+#: templates/exchanges/dashboard.html:116
+msgid "The chain is there, but the money is not"
+msgstr "Цепочка есть, но деньги в другом банке"
+
+#: templates/exchanges/dashboard.html:118
+#, python-format
+msgid ""
+"A route exists, but it leaves %(cur)s at %(frm)s and the next leg spends it "
+"at %(to)s. Record the transfer between them and this route will appear."
+msgstr ""
+"Маршрут есть, но %(cur)s остаётся в %(frm)s, а следующий шаг тратит эти "
+"деньги в %(to)s. Запишите перевод между ними — и маршрут появится."
+
+#: templates/exchanges/dashboard.html:120
+msgid "Record the transfer"
+msgstr "Записать перевод"
+
+#: templates/exchanges/dashboard.html:125
 msgid "No route between these currencies"
 msgstr "Нет маршрута между этими валютами"
 
-#: templates/exchanges/dashboard.html:111
+#: templates/exchanges/dashboard.html:126
 msgid ""
 "Your recorded exchanges do not chain from one to the other yet. Add the "
 "missing leg and it will appear here."
 msgstr ""
 "Ваши обмены пока не соединяются в цепочку. Добавьте недостающее звено — "
-"маршрут появится здесь.Ваши обмены пока не соединяются в цепочку. Добавьте "
-"недостающее звено — маршрут появится здесь."
+"маршрут появится здесь."
 
-#: templates/exchanges/dashboard.html:119
+#: templates/exchanges/dashboard.html:134
 msgid "Saved routes"
 msgstr "Сохранённые маршруты"
 
-#: templates/exchanges/dashboard.html:120
-#: templates/exchanges/dashboard.html:165 templates/exchanges/route_form.html:4
+#: templates/exchanges/dashboard.html:135
+#: templates/exchanges/dashboard.html:180 templates/exchanges/route_form.html:4
+#: templates/exchanges/route_form.html:6
 msgid "New route"
 msgstr "Новый маршрут"
 
-#: templates/exchanges/dashboard.html:130
+#: templates/exchanges/dashboard.html:145
 msgid "Steps do not connect"
 msgstr "Шаги не стыкуются"
 
-#: templates/exchanges/dashboard.html:137
-#: templates/exchanges/dashboard.html:198
+#: templates/exchanges/dashboard.html:152
+#: templates/exchanges/dashboard.html:213
 msgid "Edit"
 msgstr "Изменить"
 
-#: templates/exchanges/dashboard.html:140
-#: templates/exchanges/exchange_form.html:95
+#: templates/exchanges/dashboard.html:155
+#: templates/exchanges/exchange_form.html:100
 msgid "Delete"
 msgstr "Удалить"
 
-#: templates/exchanges/dashboard.html:163
+#: templates/exchanges/dashboard.html:178
 msgid "Your exchanges"
 msgstr "Мои обмены"
 
-#: templates/exchanges/dashboard.html:166
+#: templates/exchanges/dashboard.html:181
 #: templates/exchanges/exchange_form.html:4
+#: templates/exchanges/exchange_form.html:6
 msgid "Record exchange"
 msgstr "Записать обмен"
 
-#: templates/exchanges/dashboard.html:172
+#: templates/exchanges/dashboard.html:187
 msgid "Every exchange you have recorded, with its effective rate"
 msgstr "Все записанные обмены с фактическим курсом"
 
-#: templates/exchanges/dashboard.html:175
+#: templates/exchanges/dashboard.html:190
+#: templates/exchanges/dashboard.html:201
 msgid "Spent"
 msgstr "Отдал"
 
-#: templates/exchanges/dashboard.html:176
+#: templates/exchanges/dashboard.html:191
+#: templates/exchanges/dashboard.html:202
 msgid "Received"
 msgstr "Получил"
 
-#: templates/exchanges/dashboard.html:177
+#: templates/exchanges/dashboard.html:192
+#: templates/exchanges/dashboard.html:203
 msgid "Via"
 msgstr "Через"
 
-#: templates/exchanges/dashboard.html:178
+#: templates/exchanges/dashboard.html:193
+#: templates/exchanges/dashboard.html:210
 msgid "Rate"
 msgstr "Курс"
 
-#: templates/exchanges/dashboard.html:179
+#: templates/exchanges/dashboard.html:194
 msgid "Actions"
 msgstr "Действия"
 
-#: templates/exchanges/dashboard.html:191
+#: templates/exchanges/dashboard.html:206
 #, python-format
 msgid "in %(n)s route"
 msgid_plural "in %(n)s routes"
@@ -420,32 +527,33 @@ msgstr[0] "в %(n)s маршруте"
 msgstr[1] "в %(n)s маршрутах"
 msgstr[2] "в %(n)s маршрутах"
 
-#: templates/exchanges/dashboard.html:192
+#: templates/exchanges/dashboard.html:207
 msgid "not in any route"
 msgstr "не в маршрутах"
 
 #: templates/exchanges/exchange_form.html:4
-#: templates/exchanges/exchange_form.html:9
+#: templates/exchanges/exchange_form.html:6
+#: templates/exchanges/exchange_form.html:11
 msgid "Edit exchange"
 msgstr "Изменить обмен"
 
-#: templates/exchanges/exchange_form.html:10
+#: templates/exchanges/exchange_form.html:12
 msgid "Enter what you actually paid and received — the rate follows."
 msgstr "Введите, сколько отдали и сколько получили — курс посчитается сам."
 
-#: templates/exchanges/exchange_form.html:48
+#: templates/exchanges/exchange_form.html:50
 msgid "Optional. Naming the bank makes routes easier to tell apart."
 msgstr "Необязательно. С названием банка маршруты легче различать."
 
-#: templates/exchanges/exchange_form.html:52
+#: templates/exchanges/exchange_form.html:54
 msgid "already used:"
 msgstr "уже использованы:"
 
-#: templates/exchanges/exchange_form.html:71
+#: templates/exchanges/exchange_form.html:76
 msgid "Which bank the money landed in."
 msgstr "В какой банк пришли деньги."
 
-#: templates/exchanges/exchange_form.html:79
+#: templates/exchanges/exchange_form.html:84
 #, python-format
 msgid "Affects %(n)s saved route"
 msgid_plural "Affects %(n)s saved routes"
@@ -453,75 +561,75 @@ msgstr[0] "Влияет на %(n)s маршрут"
 msgstr[1] "Влияет на %(n)s маршрута"
 msgstr[2] "Влияет на %(n)s маршрутов"
 
-#: templates/exchanges/exchange_form.html:80
+#: templates/exchanges/exchange_form.html:85
 msgid "Not part of any saved route yet"
 msgstr "Пока не входит ни в один маршрут"
 
-#: templates/exchanges/exchange_form.html:85
+#: templates/exchanges/exchange_form.html:90
 msgid "does not connect"
 msgstr "не соединяется"
 
-#: templates/exchanges/exchange_form.html:92
+#: templates/exchanges/exchange_form.html:97
 msgid "Save"
 msgstr "Сохранить"
 
-#: templates/exchanges/exchange_form.html:93
-#: templates/exchanges/route_form.html:79
+#: templates/exchanges/exchange_form.html:98
+#: templates/exchanges/route_form.html:81
 msgid "Cancel"
 msgstr "Отмена"
 
-#: templates/exchanges/route_form.html:10
+#: templates/exchanges/route_form.html:6 templates/exchanges/route_form.html:12
 msgid "Edit route"
 msgstr "Изменить маршрут"
 
-#: templates/exchanges/route_form.html:11
+#: templates/exchanges/route_form.html:13
 msgid "Save a route"
 msgstr "Сохранить маршрут"
 
-#: templates/exchanges/route_form.html:13
+#: templates/exchanges/route_form.html:15
 msgid "Build the chain step by step; only steps that connect are offered."
 msgstr ""
 "Собирайте цепочку шаг за шагом — предлагаются только те, что стыкуются."
 
-#: templates/exchanges/route_form.html:35
+#: templates/exchanges/route_form.html:37
 #, python-format
 msgid "Remove %(s)s"
 msgstr "Убрать %(s)s"
 
-#: templates/exchanges/route_form.html:40
+#: templates/exchanges/route_form.html:42
 msgid "Through rate"
 msgstr "Сквозной курс"
 
-#: templates/exchanges/route_form.html:48
+#: templates/exchanges/route_form.html:50
 #, python-format
 msgid "continues from %(sign)s:"
 msgstr "продолжает от %(sign)s:"
 
-#: templates/exchanges/route_form.html:49
+#: templates/exchanges/route_form.html:51
 msgid "starts the route:"
 msgstr "с чего начинается маршрут:"
 
-#: templates/exchanges/route_form.html:62
+#: templates/exchanges/route_form.html:64
 msgid "Nothing else connects from here."
 msgstr "Отсюда больше ничего не стыкуется."
 
-#: templates/exchanges/route_form.html:69
+#: templates/exchanges/route_form.html:71
 msgid "Does not connect to the current chain"
 msgstr "Не стыкуется с текущей цепочкой"
 
-#: templates/exchanges/route_form.html:78
+#: templates/exchanges/route_form.html:80
 msgid "Save changes"
 msgstr "Сохранить изменения"
 
-#: templates/exchanges/route_form.html:78
+#: templates/exchanges/route_form.html:80
 msgid "Save route"
 msgstr "Сохранить маршрут"
 
-#: templates/registration/login.html:4 templates/registration/login.html:9
-#: templates/registration/login.html:35
+#: templates/registration/login.html:4 templates/registration/login.html:6
+#: templates/registration/login.html:37
 msgid "Sign in"
 msgstr "Войти"
 
-#: templates/registration/login.html:10
+#: templates/registration/login.html:12
 msgid "Your exchanges and routes are private to your account."
 msgstr "Ваши обмены и маршруты видны только вам."

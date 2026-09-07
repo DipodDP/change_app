@@ -1,11 +1,19 @@
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .forms import ExchangeForm
 from .models import Currency, Exchange, Route, RouteStep
-from .routing import Leg, best_paths, chain_rate, compare, is_transfer, provider_ends
+from .routing import (
+    Leg,
+    best_paths,
+    blocked_chain,
+    chain_rate,
+    compare,
+    is_transfer,
+    provider_ends,
+)
 
 
 def make(
@@ -673,7 +681,8 @@ class NewFeatureViewTests(SignedIn, TestCase):
         self.assertFalse(Route.objects.filter(name="bad").exists())
 
     def test_reset_clears_then_reloads(self):
-        self.client.post(reverse("reset-data"))
+        # Wiping is confirmed; reloading the example is not.
+        self.client.post(reverse("reset-data"), {"confirm": "1"})
         self.assertEqual(Exchange.objects.count(), 0)
         self.client.post(reverse("reset-data"))
         self.assertEqual(Exchange.objects.count(), len(__import__("exchanges.views", fromlist=["SEED"]).SEED))
@@ -1147,7 +1156,7 @@ class OwnerScopingTests(TestCase):
         mine = make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
         mine.owner = self.bob
         mine.save()
-        self.client.post(reverse("reset-data"))
+        self.client.post(reverse("reset-data"), {"confirm": "1"})
         self.assertTrue(Exchange.objects.filter(pk=self.hers.pk).exists())
         self.assertFalse(Exchange.objects.filter(pk=mine.pk).exists())
 
@@ -1737,3 +1746,277 @@ class DestinationVisibilityTests(SignedIn, TestCase):
         i = html.index('name="received_provider"')
         start = html.rindex("<div", 0, i)
         return html[start : html.index("</div>", i)]
+
+
+@override_settings(LANGUAGE_CODE="en")
+class ResetGuardTests(SignedIn, TestCase):
+    """The wipe is the only irreversible path in the app, so it is guarded.
+
+    Deleting one exchange already asks for confirmation; deleting every
+    exchange and every route must not ask for less.
+    """
+
+    def setUp(self):
+        self.keep = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+
+    def test_post_without_confirmation_does_not_wipe(self):
+        # The header button alone must not be able to destroy the ledger.
+        self.client.post(reverse("reset-data"))
+        self.assertTrue(Exchange.objects.filter(pk=self.keep.pk).exists())
+
+    def test_get_shows_a_confirmation_naming_the_counts(self):
+        Route.objects.create(name="BYN → EUR", owner=self.user)
+        body = self.client.get(reverse("reset-data")).content.decode()
+        self.assertIn("1 exchange", body)
+        self.assertIn("1 saved route", body)
+
+    def test_confirmed_post_wipes_only_this_owner(self):
+        from django.contrib.auth import get_user_model
+
+        other = get_user_model().objects.create_user("other", password="pw-test-2")
+        theirs = make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=other)
+
+        self.client.post(reverse("reset-data"), {"confirm": "1"})
+
+        self.assertFalse(Exchange.objects.filter(pk=self.keep.pk).exists())
+        self.assertTrue(Exchange.objects.filter(pk=theirs.pk).exists())
+
+    def test_loading_demo_data_needs_no_confirmation(self):
+        # Creating data is not destructive; only the wipe branch is guarded.
+        Exchange.objects.all().delete()
+        self.client.post(reverse("reset-data"))
+        self.assertTrue(Exchange.objects.filter(owner=self.user).exists())
+
+
+@override_settings(LANGUAGE_CODE="en")
+class HeaderLabelTests(SignedIn, TestCase):
+    """The header button toggles between two opposite actions, so its label
+    must follow what THIS user owns, not what the database happens to hold."""
+
+    def test_empty_account_is_offered_demo_data(self):
+        from django.contrib.auth import get_user_model
+
+        other = get_user_model().objects.create_user("other", password="pw-test-2")
+        make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=other)
+
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertIn("Demo data", body)
+        self.assertNotIn("Clear all", body)
+
+    def test_account_with_exchanges_is_offered_the_wipe(self):
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user)
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertIn("Clear all", body)
+
+
+@override_settings(LANGUAGE_CODE="en")
+class DemoDataTests(SignedIn, TestCase):
+    """The demo exists to show the comparison working.
+
+    Its whole job is the dashboard's default query, so that query must return
+    routes — a worked example that produces an empty state teaches the
+    opposite of what it is for.
+    """
+
+    def test_demo_data_answers_the_default_query(self):
+        self.client.post(reverse("reset-data"))
+        rows = list(Exchange.objects.filter(owner=self.user))
+        options = compare(rows, Currency.BYN, Currency.HUF, Decimal("100"))
+        self.assertTrue(options, "demo data must produce at least one BYN->HUF route")
+
+    def test_demo_data_shows_a_multi_leg_comparison(self):
+        # A single-leg answer would never exercise the penalty tag or the
+        # branch spine, which is the part of the product worth demonstrating.
+        self.client.post(reverse("reset-data"))
+        rows = list(Exchange.objects.filter(owner=self.user))
+        options = compare(rows, Currency.BYN, Currency.HUF, Decimal("100"))
+        self.assertGreaterEqual(len(options), 2, "demo should offer a comparison")
+        self.assertTrue(
+            any(len(o.legs) > 1 for o in options),
+            "at least one demo route should chain more than one leg",
+        )
+
+
+class BlockedChainTests(TestCase):
+    """Why a route is missing changes what the user should do about it.
+
+    A currency the ledger never touches needs a new exchange. A chain that
+    exists but sits at two banks needs a transfer. Telling the second user to
+    "add the missing leg" sends them to record data they already have.
+    """
+
+    def test_no_path_at_all_is_not_reported_as_blocked(self):
+        make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
+        self.assertIsNone(blocked_chain([], Currency.BYN, Currency.HUF))
+
+    def test_unreachable_currency_is_not_blocked(self):
+        rows = [make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")]
+        self.assertIsNone(blocked_chain(rows, Currency.BYN, Currency.THB))
+
+    def test_chain_split_across_banks_is_reported_with_the_joint(self):
+        rows = [
+            make(100, Currency.BYN, "28.84", Currency.EUR, "Prior"),
+            make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP"),
+        ]
+        blocked = blocked_chain(rows, Currency.BYN, Currency.HUF)
+        self.assertIsNotNone(blocked)
+        self.assertEqual(blocked["from_provider"], "Prior")
+        self.assertEqual(blocked["to_provider"], "OTP")
+        self.assertEqual(blocked["currency"], Currency.EUR)
+
+    def test_a_working_chain_is_not_reported_as_blocked(self):
+        rows = [
+            make(100, Currency.BYN, "28.84", Currency.EUR, "Prior"),
+            make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior"),
+        ]
+        self.assertIsNone(blocked_chain(rows, Currency.BYN, Currency.HUF))
+
+
+@override_settings(LANGUAGE_CODE="en")
+class BlockedEmptyStateTests(SignedIn, TestCase):
+    """The dashboard must name the real obstacle, not guess at a missing leg."""
+
+    def test_split_chain_names_both_banks(self):
+        make(100, Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user)
+        make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP", owner=self.user)
+
+        body = self.client.get(
+            reverse("dashboard"),
+            {"mode": "send", "base": Currency.BYN, "target": Currency.HUF,
+             "amount": "100"},
+        ).content.decode()
+
+        self.assertIn("Prior", body)
+        self.assertIn("OTP", body)
+        self.assertNotIn("Add the missing leg", body)
+
+    def test_genuinely_unreachable_pair_keeps_the_original_copy(self):
+        make(100, Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user)
+
+        body = self.client.get(
+            reverse("dashboard"),
+            {"mode": "send", "base": Currency.BYN, "target": Currency.THB,
+             "amount": "100"},
+        ).content.decode()
+
+        self.assertIn("Add the missing leg", body)
+
+
+@override_settings(LANGUAGE_CODE="en")
+class GetModeFramingTests(SignedIn, TestCase):
+    """In get mode the amount is what the user wants to RECEIVE.
+
+    Attaching it to the base currency states the opposite of the question,
+    and the one large figure on the card changes meaning between modes, so
+    both need to say which they are.
+    """
+
+    def setUp(self):
+        make(100, Currency.BYN, "33.26", Currency.USD, "Freedom", owner=self.user)
+
+    def _get(self, mode):
+        return self.client.get(
+            reverse("dashboard"),
+            {"mode": mode, "base": Currency.BYN, "target": Currency.USD,
+             "amount": "100"},
+        ).content.decode()
+
+    def test_get_mode_binds_the_amount_to_what_is_received(self):
+        # `symbol` renders USD as "$", so assert on the rendered form.
+        body = self._get("get")
+        self.assertNotIn("100.00 BYN → USD", body)
+        self.assertIn("To receive 100.00 $", body)
+
+    def test_get_mode_names_the_figure_as_a_cost(self):
+        self.assertIn("You pay", self._get("get"))
+
+    def test_send_mode_still_reads_as_a_payout(self):
+        body = self._get("send")
+        self.assertIn("100.00 BYN", body)
+        self.assertNotIn("You pay", body)
+
+    def test_rate_is_quoted_in_the_direction_asked(self):
+        # Asking "what does 100 USD cost?" is answered in BYN per dollar.
+        body = self._get("get")
+        self.assertIn("1 $ = <b>3.0066 BYN</b>", body)
+        self.assertNotIn("1 BYN = <b>0.3326 $</b>", body.split('class="results"')[1])
+
+
+@override_settings(LANGUAGE_CODE="en")
+class HeadingHierarchyTests(SignedIn, TestCase):
+    """Every page needs one h1, and the dashboard's is the job it does."""
+
+    def test_dashboard_has_exactly_one_h1(self):
+        make(100, Currency.BYN, "33.26", Currency.USD, "Freedom", owner=self.user)
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertEqual(body.count("<h1"), 1)
+
+    def test_h1_precedes_every_h2(self):
+        make(100, Currency.BYN, "33.26", Currency.USD, "Freedom", owner=self.user)
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertLess(body.index("<h1"), body.index("<h2"))
+
+    def test_other_pages_have_an_h1_too(self):
+        for name in ("exchange-create", "route-create"):
+            body = self.client.get(reverse(name)).content.decode()
+            self.assertEqual(body.count("<h1"), 1, f"{name} needs one h1")
+
+
+@override_settings(LANGUAGE_CODE="en")
+class CopyPluralTests(SignedIn, TestCase):
+    """Counted messages must not hardcode the English plural."""
+
+    def test_clearing_one_of_each_reads_singular(self):
+        e = Exchange.objects.create(
+            spent_amount=Decimal("100"),
+            spent_currency=Currency.BYN,
+            received_amount=Decimal("30"),
+            received_currency=Currency.USD,
+            owner=self.user,
+        )
+        route = Route.objects.create(name="R", owner=self.user)
+        RouteStep.objects.create(route=route, exchange=e, position=0)
+
+        response = self.client.post(
+            reverse("reset-data"), {"confirm": "1"}, follow=True
+        )
+        body = response.content.decode()
+        self.assertIn("Cleared 1 exchange, and every saved route.", body)
+        self.assertNotIn("1 exchanges", body)
+
+    def test_clearing_several_reads_plural(self):
+        for _i in range(2):
+            Exchange.objects.create(
+                spent_amount=Decimal("100"),
+                spent_currency=Currency.BYN,
+                received_amount=Decimal("30"),
+                received_currency=Currency.USD,
+                owner=self.user,
+            )
+        response = self.client.post(
+            reverse("reset-data"), {"confirm": "1"}, follow=True
+        )
+        self.assertIn("2 exchanges", response.content.decode())
+
+
+@override_settings(LANGUAGE_CODE="en")
+class CascadeWarningTests(SignedIn, TestCase):
+    """Losing a saved route is a warning, not a success."""
+
+    def test_route_loss_is_announced_as_a_warning(self):
+        e = Exchange.objects.create(
+            spent_amount=Decimal("100"),
+            spent_currency=Currency.BYN,
+            received_amount=Decimal("30"),
+            received_currency=Currency.USD,
+            owner=self.user,
+        )
+        route = Route.objects.create(name="Solo", owner=self.user)
+        RouteStep.objects.create(route=route, exchange=e, position=0)
+
+        body = self.client.post(
+            reverse("exchange-delete", args=[e.pk]), follow=True
+        ).content.decode()
+        self.assertIn("msg-warning", body)
+        self.assertIn("gone too", body)
+        self.assertNotIn("had no steps left", body)

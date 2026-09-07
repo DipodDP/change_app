@@ -3,10 +3,12 @@
 
 {% block title %}{% trans "Sign in" %} · {% trans "Change" %}{% endblock %}
 
+{% block page_title %}{% trans "Sign in" %}{% endblock %}
+{% block page_title_class %}page-h1 card-narrow-h1{% endblock %}
+
 {% block content %}
-<section class="card card-narrow" aria-labelledby="login-h">
+<section class="card card-narrow">
   <div class="card-head">
-    <h2 id="login-h">{% trans "Sign in" %}</h2>
     <span class="hint">{% trans "Your exchanges and routes are private to your account." %}</span>
   </div>
 
@@ -25,7 +27,7 @@
       {% for e in form.username.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
     </div>
 
-    <div class="field" style="margin-top:14px">
+    <div class="field mt-3">
       <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
       {{ form.password }}
       {% for e in form.password.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}

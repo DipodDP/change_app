@@ -3,6 +3,8 @@
 
 {% block title %}{% trans "New route" %} · {% trans "Change" %}{% endblock %}
 
+{% block page_title %}{% if is_edit %}{% trans "Edit route" %}{% else %}{% trans "New route" %}{% endif %}{% endblock %}
+
 {% block content %}
 <section class="card" aria-labelledby="rf-h">
   <div class="card-head">
@@ -43,7 +45,7 @@
     {% endif %}
 
     {# ---- candidates ---- #}
-    <div class="builder" style="margin-top:14px">
+    <div class="builder mt-3">
       <span class="picks-label">
         {% if tail %}{% blocktrans with sign=tail|symbol %}continues from {{ sign }}:{% endblocktrans %}
         {% else %}{% trans "starts the route:" %}{% endif %}
@@ -63,7 +65,7 @@
       {% endif %}
 
       {% if not_fitting %}
-        <div class="picks-row" style="margin-top:6px">
+        <div class="picks-row mt-1">
           {% for e in not_fitting %}
             <span class="chip is-mono is-dead" aria-disabled="true"
                   title="{% trans "Does not connect to the current chain" %}">

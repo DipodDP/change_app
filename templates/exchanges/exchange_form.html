@@ -3,6 +3,8 @@
 
 {% block title %}{% if is_edit %}{% trans "Edit exchange" %}{% else %}{% trans "Record exchange" %}{% endif %} · {% trans "Change" %}{% endblock %}
 
+{% block page_title %}{% if is_edit %}{% trans "Edit exchange" %}{% else %}{% trans "Record exchange" %}{% endif %}{% endblock %}
+
 {% block content %}
 <section class="card" aria-labelledby="f-h">
   <div class="card-head">
@@ -42,13 +44,13 @@
       </div>
     </div>
 
-    <div class="field" style="margin-top:16px">
+    <div class="field mt-4">
       <label for="{{ form.provider.id_for_label }}">{{ form.provider.label }}</label>
       {{ form.provider }}
       <span class="helptext">{% trans "Optional. Naming the bank makes routes easier to tell apart." %}</span>
 
       {% if bank_picks %}
-        <div class="picks" style="margin-top:8px">
+        <div class="picks mt-2">
           <span class="picks-label" id="bank-picks-label">{% trans "already used:" %}</span>
           <div class="picks-row" role="group" aria-labelledby="bank-picks-label">
             {% for pick in bank_picks %}
@@ -66,7 +68,7 @@
       currencies mean. The row stays in the markup either way so the browser
       can reveal it the moment the two selects agree.
     {% endcomment %}
-    <div class="field js-destination" style="margin-top:16px"
+    <div class="field js-destination mt-4"
          {% if not is_transfer %}hidden{% endif %}>
       <label for="{{ form.received_provider.id_for_label }}">{{ form.received_provider.label }}</label>
       {{ form.received_provider }}
@@ -75,7 +77,7 @@
     </div>
 
     {% if is_edit %}
-      <div class="impact" style="margin-top:18px">
+      <div class="impact mt-5">
         <h3>
           {% if affected %}
             {% blocktrans count n=affected|length %}Affects {{ n }} saved route{% plural %}Affects {{ n }} saved routes{% endblocktrans %}
@@ -94,7 +96,7 @@
       <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
       <a class="btn btn-quiet" href="{% url 'dashboard' %}">{% trans "Cancel" %}</a>
       {% if is_edit %}
-        <a class="btn btn-danger" style="margin-left:auto" href="{% url 'exchange-delete' exchange.pk %}">{% trans "Delete" %}</a>
+        <a class="btn btn-danger push-end" href="{% url 'exchange-delete' exchange.pk %}">{% trans "Delete" %}</a>
       {% endif %}
     </div>
   </form>

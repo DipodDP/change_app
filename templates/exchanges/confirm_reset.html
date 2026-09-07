@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Clear everything?" %} · {% trans "Change" %}{% endblock %}
+
+{% block page_title %}{% trans "Clear everything?" %}{% endblock %}
+
+{% block content %}
+<section class="card" aria-labelledby="c-h">
+  <div class="card-head">
+    <h2 id="c-h">{% trans "Clear everything?" %}</h2>
+  </div>
+
+  <p class="mt-0">
+    {% blocktrans count n=exchange_count %}{{ n }} exchange{% plural %}{{ n }} exchanges{% endblocktrans %}{% if route_count %},
+    {% blocktrans count n=route_count %}{{ n }} saved route{% plural %}{{ n }} saved routes{% endblocktrans %}{% endif %}
+    {% trans "will be permanently deleted." %}
+  </p>
+  <p class="hint">{% trans "This cannot be undone, and there is no export. Your recorded rates are the only copy." %}</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="confirm" value="1">
+    <div class="form-actions">
+      <button type="submit" class="btn btn-danger">{% trans "Yes, clear everything" %}</button>
+      <a class="btn btn-quiet" href="{% url 'dashboard' %}">{% trans "Keep my data" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

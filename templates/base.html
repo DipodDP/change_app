@@ -2,7 +2,7 @@
 {% get_current_language as LANG %}<html lang="{{ LANG }}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{% trans "Change" %}{% endblock %}</title>
 <meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +14,7 @@
 
 <header class="topbar">
   <div class="topbar-in">
-    <a class="brand" href="{% url 'dashboard' %}" style="text-decoration:none;color:inherit">
+    <a class="brand" href="{% url 'dashboard' %}">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M3 8h13l-3.5-3.5M21 16H8l3.5 3.5"/>
       </svg>
@@ -22,14 +22,19 @@
     </a>
 
     {% if user.is_authenticated %}
-      <form action="{% url 'reset-data' %}" method="post" style="display:inline">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-quiet btn-sm">{% if has_exchanges %}{% trans "Clear all" %}{% else %}{% trans "Demo data" %}{% endif %}</button>
-      </form>
+      {% if has_exchanges %}
+        {# Destructive: a link to the confirmation, never a one-click POST. #}
+        <a class="btn btn-quiet btn-sm is-destructive" href="{% url 'reset-data' %}">{% trans "Clear all" %}</a>
+      {% else %}
+        <form action="{% url 'reset-data' %}" method="post" class="form-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-quiet btn-sm">{% trans "Demo data" %}</button>
+        </form>
+      {% endif %}
 
-      <form action="{% url 'logout' %}" method="post" style="display:inline">
+      <form action="{% url 'logout' %}" method="post" class="form-inline">
         {% csrf_token %}
-        <button type="submit" class="btn btn-quiet btn-sm">{% blocktrans with who=user.get_username %}Sign out {{ who }}{% endblocktrans %}</button>
+        <button type="submit" class="btn btn-quiet btn-sm">{% trans "Sign out" %}<span class="who">{{ user.get_username }}</span></button>
       </form>
     {% endif %}
 
@@ -49,9 +54,20 @@
 </header>
 
 <main class="wrap">
+  {% comment %}
+  Every page names itself once. Visually hidden where the surface already reads
+  as its own heading, but the document outline always starts at h1.
+  {% endcomment %}
+  <h1 class="{% block page_title_class %}sr-only{% endblock %}">{% block page_title %}{% trans "Change" %}{% endblock %}</h1>
+
   {% if messages %}
     {% for message in messages %}
-      <div class="msg msg-{% if message.tags == 'error' %}error{% else %}success{% endif %}" role="status">{{ message }}</div>
+      {% comment %}
+      Errors and warnings interrupt; confirmations do not. A warning reports a
+      consequence the user did not ask for, so it must not read as success.
+      {% endcomment %}
+      <div class="msg msg-{{ message.tags|default:"success" }}"
+           role="{% if message.tags == 'success' %}status{% else %}alert{% endif %}">{{ message }}</div>
     {% endfor %}
   {% endif %}
 

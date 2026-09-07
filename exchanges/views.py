@@ -9,7 +9,7 @@ from django.utils.translation import ngettext
 
 from .forms import CompareForm, ExchangeForm, RouteForm
 from .models import Currency, Exchange, Route, RouteStep
-from .routing import GET, SEND, chain_rate, compare, group_options
+from .routing import GET, SEND, blocked_chain, chain_rate, compare, group_options
 from .suggestions import (
     affected_routes,
     bank_suggestions,
@@ -21,12 +21,25 @@ from .suggestions import (
 
 SYMBOL = dict(Currency.choices)
 
+# The worked example behind "Demo data". Each row is
+# (spent, currency, received, currency, bank, bank funds end up at).
+#
+# A chain only continues while the money stays where the previous leg left it,
+# so the two BYN→HUF routes below are spelled out in full: convert, move the
+# funds to the bank that offers the next leg, convert again. The transfers are
+# the point — without them these are five unrelated conversions, which is
+# exactly the shape that produces "no route" and teaches nothing.
 SEED = [
-    ("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк"),
-    ("100", Currency.BYN, "28.84", Currency.EUR, "Приорбанк"),
-    ("14.02", Currency.EUR, "5000", Currency.HUF, "OTP"),
-    ("100", Currency.BYN, "33.26", Currency.USD, "Freedom"),
-    ("7.34", Currency.USD, "2200", Currency.HUF, "Wise"),
+    ("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк", ""),
+    # Route A: Приорбанк euro, carried to OTP for the forint leg.
+    ("100", Currency.BYN, "28.84", Currency.EUR, "Приорбанк", ""),
+    ("28.84", Currency.EUR, "28.70", Currency.EUR, "Приорбанк", "OTP"),
+    ("14.02", Currency.EUR, "5000", Currency.HUF, "OTP", ""),
+    # Route B: Freedom dollars, carried to Wise. Cheaper per leg, but the
+    # transfer costs more, so A wins — which is the comparison worth showing.
+    ("100", Currency.BYN, "33.26", Currency.USD, "Freedom", ""),
+    ("33.26", Currency.USD, "32.60", Currency.USD, "Freedom", "Wise"),
+    ("7.34", Currency.USD, "2200", Currency.HUF, "Wise", ""),
 ]
 
 
@@ -58,6 +71,7 @@ def dashboard(request):
 
     results = []
     groups = []
+    blocked = None
     if query and exchanges:
         results = compare(
             exchanges,
@@ -67,6 +81,10 @@ def dashboard(request):
             mode=query["mode"],
         )
         groups = group_options(results)
+        # Nothing found does not mean nothing is possible. If the chain exists
+        # and only the bank changes mid-route, the empty state can say so.
+        if not results:
+            blocked = blocked_chain(exchanges, query["base"], query["target"])
 
     saved = []
     for route in owned_routes(request).prefetch_related("route_steps__exchange"):
@@ -105,6 +123,7 @@ def dashboard(request):
             "rows": rows,
             "exchanges": exchanges,
             "saved_routes": saved,
+            "blocked": blocked,
             "symbols": SYMBOL,
             "is_get_mode": bool(query and query["mode"] == GET),
         },
@@ -174,7 +193,11 @@ def exchange_edit(request, pk):
         if renamed:
             messages.success(
                 request,
-                _("Renamed %(names)s to match the new bank.")
+                ngettext(
+                    "Renamed the route %(names)s to match the new bank.",
+                    "Renamed the routes %(names)s to match the new bank.",
+                    len(renamed),
+                )
                 % {"names": ", ".join(r.name for r in renamed)},
             )
         return redirect(reverse("dashboard"))
@@ -196,11 +219,15 @@ def exchange_delete(request, pk):
         sync_route_names(owner=request.user)
         messages.success(request, _("Exchange deleted."))
         if dropped:
-            messages.success(
+            # Losing a saved route is a consequence the user did not ask for,
+            # so it is a warning rather than another green confirmation.
+            messages.warning(
                 request,
                 ngettext(
-                    "%(count)d route had no steps left and was removed.",
-                    "%(count)d routes had no steps left and were removed.",
+                    "%(count)d saved route used only that exchange, so it is "
+                    "gone too.",
+                    "%(count)d saved routes used only that exchange, so they "
+                    "are gone too.",
                     dropped,
                 )
                 % {"count": dropped},
@@ -332,23 +359,59 @@ def route_delete(request, pk):
 
 @login_required
 def reset_data(request):
-    """«очистить» / «демо-данные» — wipe, or reload the worked example."""
-    if request.method != "POST":
-        return redirect(reverse("dashboard"))
+    """«очистить» / «демо-данные» — wipe, or reload the worked example.
 
-    if owned_exchanges(request).exists():
-        owned_routes(request).delete()
-        owned_exchanges(request).delete()
-        messages.success(request, _("All exchanges cleared."))
-    else:
+    The two branches are not equally dangerous. Loading the example only adds
+    rows, so a POST is enough. Wiping removes every exchange and every route
+    with no undo and no export, so it goes through the same confirmation a
+    single deletion already gets — asking less for the larger loss would be
+    exactly backwards.
+    """
+    exchanges = owned_exchanges(request)
+
+    if exchanges.exists():
+        if request.method == "POST" and request.POST.get("confirm"):
+            routes = owned_routes(request)
+            counts = {"exchanges": exchanges.count(), "routes": routes.count()}
+            routes.delete()
+            exchanges.delete()
+            # Two counts that pluralise independently cannot share one
+            # sentence without either an ungrammatical form in some language or
+            # a fragment a translator cannot reorder. The confirmation page has
+            # just shown both numbers, so the receipt only has to confirm.
+            if counts["routes"]:
+                text = ngettext(
+                    "Cleared %(count)d exchange, and every saved route.",
+                    "Cleared %(count)d exchanges, and every saved route.",
+                    counts["exchanges"],
+                )
+            else:
+                text = ngettext(
+                    "Cleared %(count)d exchange.",
+                    "Cleared %(count)d exchanges.",
+                    counts["exchanges"],
+                )
+            messages.success(request, text % {"count": counts["exchanges"]})
+            return redirect(reverse("dashboard"))
+        return render(
+            request,
+            "exchanges/confirm_reset.html",
+            {
+                "exchange_count": exchanges.count(),
+                "route_count": owned_routes(request).count(),
+            },
+        )
+
+    if request.method == "POST":
         owner = request.user
-        for spent, sc, received, rc, provider in SEED:
+        for spent, sc, received, rc, provider, destination in SEED:
             Exchange.objects.create(
                 spent_amount=Decimal(spent),
                 spent_currency=sc,
                 received_amount=Decimal(received),
                 received_currency=rc,
                 provider=provider,
+                received_provider=destination,
                 owner=owner,
             )
         messages.success(request, _("Demo data loaded."))

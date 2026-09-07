@@ -76,6 +76,17 @@ class Option:
         return self.path.rate
 
     @property
+    def cost_rate(self) -> Decimal:
+        """What one unit of the target costs in base currency.
+
+        The inverse of `rate`, for get mode: someone asking "what does 100 USD
+        cost?" is thinking in BYN per dollar, not dollars per BYN.
+        """
+        if not self.path.rate:
+            return Decimal(0)
+        return (Decimal(1) / self.path.rate).quantize(QUANT_RATE)
+
+    @property
     def legs(self) -> tuple[Leg, ...]:
         return self.path.legs
 
@@ -283,3 +294,67 @@ def group_options(options: Sequence[Option]) -> list[Group]:
             Group(options=bucket, shared_step=first_step if len(bucket) > 1 else None)
         )
     return groups
+
+
+def blocked_chain(
+    exchanges: Iterable[Exchange], base: str, target: str, max_legs: int = MAX_LEGS
+) -> dict | None:
+    """The first chain the provider rule rejected, or None.
+
+    Only meaningful once best_paths has come back empty. It re-walks with the
+    rule lifted: if a chain appears, the currencies were always connected and
+    the money simply cannot get from one bank to the next, so the fix is a
+    transfer rather than another conversion. Returns the joint that broke —
+    the currency held and the two banks either side of it — so the empty state
+    can name the actual obstacle instead of guessing.
+    """
+    rows = list(exchanges)
+    if base == target:
+        return None
+
+    edges: dict[str, list[Exchange]] = {}
+    for exchange in rows:
+        edges.setdefault(exchange.spent_currency, []).append(exchange)
+
+    found: list[tuple[Exchange, Exchange]] = []
+
+    def walk(
+        currency: str, visited: tuple[str, ...], legs: tuple[Exchange, ...]
+    ) -> None:
+        if found or len(legs) >= max_legs:
+            return
+        for exchange in edges.get(currency, ()):
+            nxt = exchange.received_currency
+            if nxt in visited:
+                continue
+            chain = legs + (exchange,)
+            if nxt == target:
+                broken = _first_broken_joint(chain)
+                if broken:
+                    found.append(broken)
+                    return
+                continue
+            walk(nxt, visited + (nxt,), chain)
+            if found:
+                return
+
+    walk(base, (base,), ())
+    if not found:
+        return None
+
+    left, right = found[0]
+    return {
+        "currency": left.received_currency,
+        "from_provider": provider_ends(left)[1],
+        "to_provider": provider_ends(right)[0],
+    }
+
+
+def _first_broken_joint(chain: tuple[Exchange, ...]) -> tuple[Exchange, Exchange] | None:
+    """The first pair in a chain where funds change hands between banks."""
+    for left, right in zip(chain, chain[1:]):
+        holder = provider_ends(left)[1]
+        here = provider_ends(right)[0]
+        if holder and here and here != holder:
+            return left, right
+    return None

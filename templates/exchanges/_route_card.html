@@ -13,19 +13,29 @@
           <span class="tag tag-cost">+{{ option.penalty_pct }}%</span>
         {% endif %}
       </div>
-      <p class="rate-line" style="margin:8px 0 0">
-        1 {{ query.base|symbol }} = <b>{{ option.rate|rate }} {{ query.target|symbol }}</b>
+      {% comment %}
+      Quote the rate the way the question was asked: sending, it is target per
+      unit of base; getting, it is what one unit of the target costs.
+      {% endcomment %}
+      <p class="rate-line mt-2">
+        {% if is_get_mode %}
+          1 {{ query.target|symbol }} = <b>{{ option.cost_rate|rate }} {{ query.base|symbol }}</b>
+        {% else %}
+          1 {{ query.base|symbol }} = <b>{{ option.rate|rate }} {{ query.target|symbol }}</b>
+        {% endif %}
       </p>
     </div>
 
     <div class="payout">
       {% if is_get_mode %}
-        <div class="payout-amt">{{ option.payout|money }} {{ query.base|symbol }}</div>
+        <div class="payout-label">{% trans "You pay" %}</div>
+        <div class="payout-amt is-cost">{{ option.payout|money }} {{ query.base|symbol }}</div>
         <div class="payout-sub">
-          {% if option.is_best %}{% trans "lowest cost" %}
+          {% if option.is_best %}{% trans "cheapest of these routes" %}
           {% else %}{% blocktrans with amt=option.shortfall|money sign=query.base|symbol %}{{ amt }} {{ sign }} more{% endblocktrans %}{% endif %}
         </div>
       {% else %}
+        <div class="payout-label">{% trans "You get" %}</div>
         <div class="payout-amt">{{ option.payout|money }} {{ query.target|symbol }}</div>
         <div class="payout-sub">
           {% if option.is_best %}{% trans "best payout" %}
