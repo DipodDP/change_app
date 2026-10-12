@@ -32,35 +32,43 @@ def bank_suggestions(
     order: str = "frequent",
     limit: int = DEFAULT_BANK_LIMIT,
     show_counts: bool = True,
-    exclude: str = "",
+    exclude: str | Iterable[str] = "",
 ) -> list[BankPick]:
     """Previously-used bank names.
 
-    `typed` narrows the list to matches as the user types. `exclude` drops one
-    name without narrowing anything else — for a prefilled edit form, where
-    the record's own bank is redundant but the others are still useful.
+    `typed` narrows the list to matches as the user types. `exclude` drops a
+    name — or several — without narrowing anything else: for a prefilled edit
+    form, where the record's own bank is redundant but the others are still
+    useful, and for the destination field, where the source bank would
+    describe a transfer that goes nowhere.
     """
     # Recency is judged by created_at rather than iteration order, since the
     # queryset's own ordering is newest-first and would invert "last seen".
     stats: dict[str, dict] = {}
     for exchange in exchanges:
-        name = (exchange.provider or "").strip()
-        if not name:
-            continue
         stamp = getattr(exchange, "created_at", None) or 0
-        entry = stats.setdefault(name, {"name": name, "count": 0, "last": stamp})
-        entry["count"] += 1
-        if stamp and stamp > entry["last"]:
-            entry["last"] = stamp
+        # A bank the user has moved money *into* is as real as one they have
+        # spent from, and on a transfer it is the only place that name appears.
+        # Counting both ends means a destination typed once comes back as a
+        # chip everywhere a bank is asked for.
+        for field in (exchange.provider, exchange.received_provider):
+            name = (field or "").strip()
+            if not name:
+                continue
+            entry = stats.setdefault(name, {"name": name, "count": 0, "last": stamp})
+            entry["count"] += 1
+            if stamp and stamp > entry["last"]:
+                entry["last"] = stamp
 
     needle = typed.strip().lower()
-    skip = exclude.strip().lower()
+    names = [exclude] if isinstance(exclude, str) else list(exclude)
+    skip = {n.strip().lower() for n in names if n and n.strip()}
     picks = [
         e
         for e in stats.values()
         # Whatever is already in the field is noise if offered back.
         if e["name"].lower() != needle
-        and e["name"].lower() != skip
+        and e["name"].lower() not in skip
         and (not needle or needle in e["name"].lower())
     ]
 

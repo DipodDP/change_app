@@ -30,34 +30,47 @@
       {% if is_get_mode %}
         <div class="payout-label">{% trans "You pay" %}</div>
         <div class="payout-amt is-cost">{{ option.payout|money }} {{ query.base|symbol }}</div>
-        <div class="payout-sub">
-          {% if option.is_best %}{% trans "cheapest of these routes" %}
-          {% else %}{% blocktrans with amt=option.shortfall|money sign=query.base|symbol %}{{ amt }} {{ sign }} more{% endblocktrans %}{% endif %}
-        </div>
+        {% comment %}
+        The tag already says this one wins; the sub-line only earns its place
+        on the others, where it names the gap.
+        {% endcomment %}
+        {% if not option.is_best %}
+          <div class="payout-sub">{% blocktrans with amt=option.shortfall|money sign=query.base|symbol %}{{ amt }} {{ sign }} more{% endblocktrans %}</div>
+        {% endif %}
       {% else %}
         <div class="payout-label">{% trans "You get" %}</div>
         <div class="payout-amt">{{ option.payout|money }} {{ query.target|symbol }}</div>
-        <div class="payout-sub">
-          {% if option.is_best %}{% trans "best payout" %}
-          {% else %}{% blocktrans with amt=option.shortfall|money sign=query.target|symbol %}{{ amt }} {{ sign }} less{% endblocktrans %}{% endif %}
-        </div>
+        {% if not option.is_best %}
+          <div class="payout-sub">{% blocktrans with amt=option.shortfall|money sign=query.target|symbol %}{{ amt }} {{ sign }} less{% endblocktrans %}</div>
+        {% endif %}
       {% endif %}
     </div>
   </div>
 
   <div class="chain">
-    {% for leg in option.legs %}
+    {% for step in option.steps %}
+      {% comment %}
+      The group header already carries the shared opening leg whole — its
+      currencies and its bank — so the branch drops the arrow with it, not just
+      the chip. Leaving the arrow behind reprints the bank on every branch
+      under a header that just said it.
+      {% endcomment %}
       {% if not hide_first or not forloop.first %}
-        <div class="hop"><span class="hop-cur">{{ leg.exchange.spent_currency|symbol }}</span></div>
-      {% endif %}
-      <span class="hop-edge">
-        {% if leg.exchange.provider %}<span class="hop-via">{{ leg.exchange.provider }}</span>{% endif %}
-        <span class="hop-arrow" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <span class="hop"><span class="hop-cur">{{ step.leg.exchange.spent_currency|symbol }}</span></span>
+        <span class="hop-link{% if step.is_transfer %} is-move{% endif %}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6l6 6-6 6"/></svg>
+          {% if step.is_transfer %}<span class="sr-only">{% trans "transfer to" %}</span>{% endif %}
+          {% comment %}
+          A branch opens on the step after the hidden one, where the bank is
+          suppressed as a repeat of a leg this card never showed. The header
+          named it, but as its own element — so the first visible arrow says it
+          again to stand on its own.
+          {% endcomment %}
+          {% if step.show_bank or hide_first and forloop.counter == 2 and step.bank %}<span class="hop-via">{{ step.bank }}</span>{% endif %}
         </span>
-      </span>
+      {% endif %}
       {% if forloop.last %}
-        <div class="hop"><span class="hop-cur">{{ leg.exchange.received_currency|symbol }}</span></div>
+        <span class="hop"><span class="hop-cur">{{ step.leg.exchange.received_currency|symbol }}</span></span>
       {% endif %}
     {% endfor %}
   </div>

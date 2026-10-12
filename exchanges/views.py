@@ -9,7 +9,15 @@ from django.utils.translation import ngettext
 
 from .forms import CompareForm, ExchangeForm, RouteForm
 from .models import Currency, Exchange, Route, RouteStep
-from .routing import GET, SEND, blocked_chain, chain_rate, compare, group_options
+from .routing import (
+    GET,
+    SEND,
+    annotate,
+    blocked_chain,
+    chain_rate,
+    compare,
+    group_options,
+)
 from .suggestions import (
     affected_routes,
     bank_suggestions,
@@ -100,7 +108,9 @@ def dashboard(request):
         saved.append(
             {
                 "route": route,
-                "steps": steps,
+                # Annotated the same way a ranked route's chain is, so a
+                # transfer reads as a transfer in both places.
+                "steps": annotate(steps),
                 "rate": rate,
                 "broken": broken,
                 "from_currency": steps[0].spent_currency,
@@ -138,8 +148,19 @@ def _exchange_context(request, form, instance=None):
     # only exclude the record's own bank, keeping the rest on offer.
     if request.method == "POST":
         typed, exclude = request.POST.get("provider", ""), ""
+        # The source bank is where the money already is, so offering it as the
+        # destination would describe a transfer that goes nowhere.
+        dest_typed = request.POST.get("received_provider", "")
+        dest_exclude = request.POST.get("provider", "")
     else:
         typed, exclude = "", (instance.provider if instance else "")
+        dest_typed = ""
+        # Same reasoning as `exclude` above, for the other end: the record's
+        # own destination is already in the field, and its source bank is
+        # where the money is leaving from.
+        dest_exclude = (
+            [instance.provider, instance.received_provider] if instance else []
+        )
 
     # Matching currencies mean a transfer, which is the only kind of row with a
     # second bank. Decided here so the field is already open when an existing
@@ -160,6 +181,9 @@ def _exchange_context(request, form, instance=None):
         "is_transfer": shows_destination,
         "bank_picks": bank_suggestions(
             owned_exchanges(request), typed=typed, exclude=exclude
+        ),
+        "destination_picks": bank_suggestions(
+            owned_exchanges(request), typed=dest_typed, exclude=dest_exclude
         ),
         "affected": affected_routes(instance) if instance else [],
     }

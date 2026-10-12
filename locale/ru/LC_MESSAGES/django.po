@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-07 08:01+0000\n"
+"POT-Creation-Date: 2026-09-09 09:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -153,15 +153,15 @@ msgstr "маршрут"
 msgid "routes"
 msgstr "маршруты"
 
-#: exchanges/views.py:175
+#: exchanges/views.py:185
 msgid "Exchange recorded."
 msgstr "Обмен записан."
 
-#: exchanges/views.py:192
+#: exchanges/views.py:202
 msgid "Exchange updated."
 msgstr "Обмен обновлён."
 
-#: exchanges/views.py:197
+#: exchanges/views.py:207
 #, python-format
 msgid "Renamed the route %(names)s to match the new bank."
 msgid_plural "Renamed the routes %(names)s to match the new bank."
@@ -170,11 +170,11 @@ msgstr[1] "Маршруты %(names)s переименованы под новы
 msgstr[2] "Маршруты %(names)s переименованы под новый банк."
 msgstr[3] "Маршруты %(names)s переименованы под новый банк."
 
-#: exchanges/views.py:220
+#: exchanges/views.py:230
 msgid "Exchange deleted."
 msgstr "Обмен удалён."
 
-#: exchanges/views.py:227
+#: exchanges/views.py:237
 #, python-format
 msgid "%(count)d saved route used only that exchange, so it is gone too."
 msgid_plural ""
@@ -192,23 +192,23 @@ msgstr[3] ""
 "%(count)d сохранённых маршрутов состояли только из этого обмена и удалены "
 "вместе с ним."
 
-#: exchanges/views.py:278
+#: exchanges/views.py:288
 msgid "Unnamed route"
 msgstr "Маршрут без названия"
 
-#: exchanges/views.py:305
+#: exchanges/views.py:315
 msgid "Route saved."
 msgstr "Маршрут сохранён."
 
-#: exchanges/views.py:331
+#: exchanges/views.py:341
 msgid "Route updated."
 msgstr "Маршрут обновлён."
 
-#: exchanges/views.py:355
+#: exchanges/views.py:365
 msgid "Route deleted."
 msgstr "Маршрут удалён."
 
-#: exchanges/views.py:384
+#: exchanges/views.py:394
 #, python-format
 msgid "Cleared %(count)d exchange, and every saved route."
 msgid_plural "Cleared %(count)d exchanges, and every saved route."
@@ -217,7 +217,7 @@ msgstr[1] "Удалено %(count)d обмена и все сохранённы�
 msgstr[2] "Удалено %(count)d обменов и все сохранённые маршруты."
 msgstr[3] "Удалено %(count)d обменов и все сохранённые маршруты."
 
-#: exchanges/views.py:390
+#: exchanges/views.py:400
 #, python-format
 msgid "Cleared %(count)d exchange."
 msgid_plural "Cleared %(count)d exchanges."
@@ -226,7 +226,7 @@ msgstr[1] "Удалено %(count)d обмена."
 msgstr[2] "Удалено %(count)d обменов."
 msgstr[3] "Удалено %(count)d обменов."
 
-#: exchanges/views.py:417
+#: exchanges/views.py:427
 msgid "Demo data loaded."
 msgstr "Демо-данные загружены."
 
@@ -266,27 +266,24 @@ msgstr "Лучший курс"
 msgid "You pay"
 msgstr "Вы платите"
 
-#: templates/exchanges/_route_card.html:35
-msgid "cheapest of these routes"
-msgstr "самый дешёвый из найденных"
-
-#: templates/exchanges/_route_card.html:36
+#: templates/exchanges/_route_card.html:40
 #, python-format
 msgid "%(amt)s %(sign)s more"
 msgstr "на %(amt)s %(sign)s больше"
 
-#: templates/exchanges/_route_card.html:39
+#: templates/exchanges/_route_card.html:43
 msgid "You get"
 msgstr "Вы получаете"
 
-#: templates/exchanges/_route_card.html:42
-msgid "best payout"
-msgstr "лучший результат"
-
-#: templates/exchanges/_route_card.html:43
+#: templates/exchanges/_route_card.html:46
 #, python-format
 msgid "%(amt)s %(sign)s less"
 msgstr "на %(amt)s %(sign)s меньше"
+
+#: templates/exchanges/_route_card.html:65
+#: templates/exchanges/dashboard.html:169
+msgid "transfer to"
+msgstr "перевод в"
 
 #: templates/exchanges/confirm_delete.html:4
 #: templates/exchanges/confirm_delete.html:6
@@ -462,7 +459,7 @@ msgid "Saved routes"
 msgstr "Сохранённые маршруты"
 
 #: templates/exchanges/dashboard.html:135
-#: templates/exchanges/dashboard.html:180 templates/exchanges/route_form.html:4
+#: templates/exchanges/dashboard.html:186 templates/exchanges/route_form.html:4
 #: templates/exchanges/route_form.html:6
 msgid "New route"
 msgstr "Новый маршрут"
@@ -472,7 +469,7 @@ msgid "Steps do not connect"
 msgstr "Шаги не стыкуются"
 
 #: templates/exchanges/dashboard.html:152
-#: templates/exchanges/dashboard.html:213
+#: templates/exchanges/dashboard.html:219
 msgid "Edit"
 msgstr "Изменить"
 
@@ -481,45 +478,45 @@ msgstr "Изменить"
 msgid "Delete"
 msgstr "Удалить"
 
-#: templates/exchanges/dashboard.html:178
+#: templates/exchanges/dashboard.html:184
 msgid "Your exchanges"
 msgstr "Мои обмены"
 
-#: templates/exchanges/dashboard.html:181
+#: templates/exchanges/dashboard.html:187
 #: templates/exchanges/exchange_form.html:4
 #: templates/exchanges/exchange_form.html:6
 msgid "Record exchange"
 msgstr "Записать обмен"
 
-#: templates/exchanges/dashboard.html:187
+#: templates/exchanges/dashboard.html:193
 msgid "Every exchange you have recorded, with its effective rate"
 msgstr "Все записанные обмены с фактическим курсом"
 
-#: templates/exchanges/dashboard.html:190
-#: templates/exchanges/dashboard.html:201
+#: templates/exchanges/dashboard.html:196
+#: templates/exchanges/dashboard.html:207
 msgid "Spent"
 msgstr "Отдал"
 
-#: templates/exchanges/dashboard.html:191
-#: templates/exchanges/dashboard.html:202
+#: templates/exchanges/dashboard.html:197
+#: templates/exchanges/dashboard.html:208
 msgid "Received"
 msgstr "Получил"
 
-#: templates/exchanges/dashboard.html:192
-#: templates/exchanges/dashboard.html:203
+#: templates/exchanges/dashboard.html:198
+#: templates/exchanges/dashboard.html:209
 msgid "Via"
 msgstr "Через"
 
-#: templates/exchanges/dashboard.html:193
-#: templates/exchanges/dashboard.html:210
+#: templates/exchanges/dashboard.html:199
+#: templates/exchanges/dashboard.html:216
 msgid "Rate"
 msgstr "Курс"
 
-#: templates/exchanges/dashboard.html:194
+#: templates/exchanges/dashboard.html:200
 msgid "Actions"
 msgstr "Действия"
 
-#: templates/exchanges/dashboard.html:206
+#: templates/exchanges/dashboard.html:212
 #, python-format
 msgid "in %(n)s route"
 msgid_plural "in %(n)s routes"
@@ -527,7 +524,7 @@ msgstr[0] "в %(n)s маршруте"
 msgstr[1] "в %(n)s маршрутах"
 msgstr[2] "в %(n)s маршрутах"
 
-#: templates/exchanges/dashboard.html:207
+#: templates/exchanges/dashboard.html:213
 msgid "not in any route"
 msgstr "не в маршрутах"
 

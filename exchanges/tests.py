@@ -1,5 +1,7 @@
+import re
 from decimal import Decimal
 
+from django.conf import settings
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -7,6 +9,8 @@ from .forms import ExchangeForm
 from .models import Currency, Exchange, Route, RouteStep
 from .routing import (
     Leg,
+    Option,
+    Path,
     best_paths,
     blocked_chain,
     chain_rate,
@@ -1308,13 +1312,16 @@ class ChainProviderPlacementTests(SignedIn, TestCase):
         for symbol in ["₽", "BYN", "$", "֏"]:
             self.assertIn(symbol, chain)
 
-    def test_each_bank_sits_between_the_currencies_it_connects(self):
+    def test_the_bank_is_named_where_the_money_first_reaches_it(self):
         chain = self._chain()
-        # Freedom converts USD into AMD, so it must render after the $ chip
-        # and before the ֏ chip rather than hanging off the end.
-        last_bank = chain.rindex("Белинвестбанк")
-        self.assertLess(chain.index("$"), last_bank)
-        self.assertLess(last_bank, chain.index("֏"))
+        # Every leg here happens at the same bank, so it is announced once, on
+        # the first edge, and stays implied after that: repeating it would
+        # suggest the money moved somewhere it never went.
+        self.assertEqual(chain.count("Белинвестбанк"), 1)
+        # It still has to sit between the two currencies it connects rather
+        # than hanging off either end of the chain.
+        self.assertLess(chain.index("₽"), chain.index("Белинвестбанк"))
+        self.assertLess(chain.index("Белинвестбанк"), chain.index("BYN"))
 
     def test_a_bank_is_marked_up_as_an_edge_not_a_hop(self):
         import re
@@ -1323,24 +1330,23 @@ class ChainProviderPlacementTests(SignedIn, TestCase):
         self.assertIn("hop-via", chain)
         # A provider nested inside a currency chip reads as a label on that
         # currency; it has to stand on its own between two chips instead.
-        hops = re.findall(r'<div class="hop">(.*?)</div>', chain, re.S)
+        hops = re.findall(r'<span class="hop">(.*?)</span></span>', chain, re.S)
         self.assertTrue(hops)
         for hop in hops:
             self.assertNotIn("hop-via", hop)
 
-    def test_the_chain_alternates_currency_then_bank(self):
+    def test_every_edge_carries_an_arrow_whether_or_not_it_is_named(self):
         import re
 
         chain = self._chain()
-        kinds = [m.group(1) for m in re.finditer(r'class="(hop-cur|hop-via)"', chain)]
-        # RUB [bank] BYN [bank] USD [bank] AMD
-        self.assertEqual(
-            kinds,
-            [
-                "hop-cur", "hop-via", "hop-cur", "hop-via",
-                "hop-cur", "hop-via", "hop-cur",
-            ],
-        )
+        # Three legs means three edges. An edge whose bank is already known
+        # shows no name, but it still draws its arrow, so the rail reads as
+        # one continuous path instead of breaking where a label is absent.
+        edges = re.findall(r'<span class="hop-link[^"]*">(.*?)</span>\s*(?=<span class="hop"|$)', chain, re.S)
+        self.assertEqual(len(edges), 3)
+        for edge in edges:
+            self.assertIn("<svg", edge)
+        self.assertEqual(sum("hop-via" in e for e in edges), 1)
 
 
 class ProviderContinuityTests(TestCase):
@@ -1742,10 +1748,16 @@ class DestinationVisibilityTests(SignedIn, TestCase):
         self.assertIn('name="received_provider"', r.content.decode())
 
     def _destination_row(self, html):
-        """The markup block wrapping the destination input."""
-        i = html.index('name="received_provider"')
-        start = html.rindex("<div", 0, i)
-        return html[start : html.index("</div>", i)]
+        """The currency-gated row wrapping the destination input.
+
+        Anchored on the `js-destination` class rather than the nearest opening
+        <div>: the field is now folded inside a disclosure, so walking back
+        from the input finds the panel that holds it instead of the row whose
+        `hidden` these tests are about.
+        """
+        start = html.index('class="field js-destination')
+        i = html.index('name="received_provider"', start)
+        return html[start:i]
 
 
 @override_settings(LANGUAGE_CODE="en")
@@ -2020,3 +2032,391 @@ class CascadeWarningTests(SignedIn, TestCase):
         self.assertIn("msg-warning", body)
         self.assertIn("gone too", body)
         self.assertNotIn("had no steps left", body)
+
+
+class OptionStepTests(TestCase):
+    """What a chain says about each leg: whose bank, and whether to repeat it.
+
+    `Option.steps` is the only place that decides when a bank name is worth
+    printing. It is read by both the route card and the dashboard, so its
+    behaviour is pinned here directly rather than through either template.
+    """
+
+    def steps(self, *exchanges):
+        option = Option(
+            path=Path(tuple(Leg(e) for e in exchanges)),
+            payout=Decimal(0),
+            penalty_pct=Decimal(0),
+            shortfall=Decimal(0),
+            is_best=True,
+        )
+        return option.steps
+
+    def test_the_bank_is_announced_on_the_first_leg(self):
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        (step,) = self.steps(a)
+        self.assertEqual(step.bank, "Prior")
+        self.assertTrue(step.show_bank)
+        self.assertFalse(step.is_transfer)
+
+    def test_the_same_bank_twice_is_said_once(self):
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        first, second = self.steps(a, b)
+        self.assertTrue(first.show_bank)
+        self.assertFalse(second.show_bank)
+
+    def test_a_new_bank_announces_itself(self):
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Белинвестбанк")
+        first, second = self.steps(a, b)
+        self.assertTrue(first.show_bank)
+        self.assertTrue(second.show_bank)
+        self.assertEqual(second.bank, "Белинвестбанк")
+
+    def test_a_transfer_names_where_the_money_lands(self):
+        t = make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
+        (step,) = self.steps(t)
+        self.assertTrue(step.is_transfer)
+        self.assertEqual(step.bank, "Prior")
+        self.assertTrue(step.show_bank)
+
+    def test_the_leg_after_a_transfer_stays_quiet(self):
+        # The transfer already said "Prior"; the conversion that follows
+        # happens there, so repeating it would suggest a second move.
+        t = make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
+        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        transfer, conversion = self.steps(t, b)
+        self.assertEqual(transfer.bank, "Prior")
+        self.assertFalse(conversion.show_bank)
+
+    def test_an_unnamed_leg_says_nothing(self):
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN)
+        (step,) = self.steps(a)
+        self.assertFalse(step.show_bank)
+
+    def test_a_bank_reappearing_after_an_unnamed_leg_is_named_again(self):
+        # The middle leg records no bank, so where the money sat is unknown.
+        # Returning to Prior is a claim the data does not support, and saying
+        # nothing would render the chain as though it never left.
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        b = make("100", Currency.BYN, "38.20", Currency.USD)
+        c = make("100", Currency.USD, "38000", Currency.HUF, "Prior")
+        first, middle, last = self.steps(a, b, c)
+        self.assertTrue(first.show_bank)
+        self.assertFalse(middle.show_bank)
+        self.assertTrue(last.show_bank)
+        self.assertEqual(last.bank, "Prior")
+
+
+class BlockedChainTransferTests(TestCase):
+    """The empty state must name the gap that is actually missing.
+
+    `blocked_chain` re-walks with the provider rule lifted to find the joint
+    that broke. Its walk has to allow a transfer to revisit a currency the
+    same way `best_paths` does — a transfer is same-currency by definition, so
+    a plain visited check skips every one of them and the walk reports the
+    first joint it can still reach instead of the real one.
+    """
+
+    def test_a_recorded_transfer_is_not_reported_as_the_gap(self):
+        # RUB→BYN at A, a recorded A→B transfer, then BYN→EUR at B: this half
+        # is sound. The break is further along, at EUR.
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "A")
+        make("1000", Currency.BYN, "1000", Currency.BYN, "A", received_provider="B")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "B")
+        make("100", Currency.EUR, "38000", Currency.HUF, "C")
+
+        self.assertEqual(
+            best_paths(Exchange.objects.all(), Currency.RUB, Currency.HUF), []
+        )
+        broken = blocked_chain(Exchange.objects.all(), Currency.RUB, Currency.HUF)
+        self.assertIsNotNone(broken)
+        self.assertEqual(broken["currency"], Currency.EUR)
+        self.assertEqual(broken["from_provider"], "B")
+        self.assertEqual(broken["to_provider"], "C")
+
+    def test_a_genuinely_missing_transfer_is_still_found(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "A")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "B")
+
+        self.assertEqual(
+            best_paths(Exchange.objects.all(), Currency.RUB, Currency.EUR), []
+        )
+        broken = blocked_chain(Exchange.objects.all(), Currency.RUB, Currency.EUR)
+        self.assertEqual(broken["currency"], Currency.BYN)
+        self.assertEqual(broken["from_provider"], "A")
+        self.assertEqual(broken["to_provider"], "B")
+
+
+class TransferMarkingTests(SignedIn, TestCase):
+    """A transfer is not distinguished by colour alone.
+
+    `.is-move` tints the arrow violet, but the arrow is aria-hidden, so on its
+    own the distinction never reaches the accessibility tree. A text label
+    carries the meaning; the colour is shorthand for people who see it.
+    """
+
+    def setUp(self):
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+
+    def _chain(self, html):
+        i = html.index('class="chain"')
+        return html[i : html.index("</div>", html.index("hop-link", i))]
+
+    def test_a_transfer_carries_a_text_label(self):
+        r = self.client.get(
+            reverse("dashboard"),
+            {"base": Currency.RUB, "target": Currency.EUR, "amount": "60000"},
+        )
+        html = r.content.decode()
+        self.assertIn("is-move", html)
+        # The label sits inside the same arrow the colour marks.
+        move = html[html.index("is-move") :]
+        self.assertIn("sr-only", move[: move.index("</span>", move.index("svg"))])
+
+    def test_a_conversion_carries_no_transfer_label(self):
+        r = self.client.get(
+            reverse("dashboard"),
+            {"base": Currency.BYN, "target": Currency.EUR, "amount": "100"},
+        )
+        html = r.content.decode()
+        self.assertNotIn("is-move", self._chain(html))
+
+
+class SavedRouteChainTests(SignedIn, TestCase):
+    """A saved route's chain is annotated by the same rule as a ranked one.
+
+    Both read Step, so a transfer is marked in both places and a bank already
+    named is not repeated on the next arrow.
+    """
+
+    def setUp(self):
+        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
+        t = make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
+        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        self.route = Route.objects.create(name="RUB → EUR", owner=self.user)
+        for position, exchange in enumerate([a, t, b]):
+            RouteStep.objects.create(
+                route=self.route, exchange=exchange, position=position
+            )
+
+    def _saved(self, html):
+        i = html.index("RUB → EUR")
+        return html[i : html.index("</article>", i)]
+
+    def test_a_saved_transfer_is_marked(self):
+        block = self._saved(self.client.get(reverse("dashboard")).content.decode())
+        self.assertIn("is-move", block)
+
+    def test_a_saved_chain_does_not_repeat_a_bank(self):
+        # Transfer lands at Prior; the conversion that follows is at Prior too,
+        # so the name belongs on the transfer's arrow and nowhere after it.
+        block = self._saved(self.client.get(reverse("dashboard")).content.decode())
+        self.assertEqual(block.count("Prior"), 1)
+
+
+@override_settings(LANGUAGE_CODE="en")
+class GroupedBankTests(SignedIn, TestCase):
+    """The shared opening leg is printed by the header, not by each branch.
+
+    `hide_first` used to drop only the opening currency chip and leave its
+    arrow behind, so the bank the header had just named was reprinted once per
+    branch. The branch drops the whole leg, and announces the bank again on
+    its first visible arrow so the card still stands on its own.
+    """
+
+    def setUp(self):
+        # One opening leg at Prior, then two ways onward from the same bank.
+        make("60000", Currency.RUB, "2140.43", Currency.BYN, "Prior")
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
+        make("14.02", Currency.EUR, "5000", Currency.HUF, "Prior")
+        make("100", Currency.BYN, "33.26", Currency.USD, "Prior")
+        make("7.34", Currency.USD, "2200", Currency.HUF, "Prior")
+
+    def _branches(self, html):
+        i = html.index('class="branch-body"')
+        body = html[i : html.index('class="card', i)]
+        return body.split('<article class="route')[1:]
+
+    def test_a_branch_does_not_reprint_the_shared_bank(self):
+        r = self.client.get(
+            reverse("dashboard"),
+            {"base": Currency.RUB, "target": Currency.HUF, "amount": "60000"},
+        )
+        html = r.content.decode()
+        self.assertIn("common start", html)
+        for branch in self._branches(html):
+            # Once, on the branch's own first arrow — not again for the leg
+            # the header already showed.
+            self.assertEqual(branch.count('class="hop-via"'), 1)
+
+    def test_a_branch_still_names_the_bank_it_continues_at(self):
+        r = self.client.get(
+            reverse("dashboard"),
+            {"base": Currency.RUB, "target": Currency.HUF, "amount": "60000"},
+        )
+        for branch in self._branches(r.content.decode()):
+            self.assertIn("Prior", branch)
+
+
+class HiddenFieldStylingTests(TestCase):
+    """A hidden row must actually be hidden.
+
+    `.field` sets `display: flex`, and a class selector outranks the browser's
+    own `[hidden] { display: none }` — so without an explicit rule the
+    destination field renders in full while carrying the attribute that is
+    supposed to suppress it.
+    """
+
+    def test_the_stylesheet_hides_a_hidden_field(self):
+        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        self.assertIn(".field[hidden]", css)
+
+    def test_the_rule_comes_after_the_display_it_overrides(self):
+        # Same specificity would let source order decide, and `.field` sets the
+        # display this rule exists to beat.
+        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        self.assertLess(css.index(".field {"), css.index(".field[hidden]"))
+
+
+class DestinationSuggestionTests(SignedIn, TestCase):
+    """The destination field offers banks the same way the source one does."""
+
+    def setUp(self):
+        make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+        )
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Freedom")
+
+    def _picks(self, html):
+        i = html.index('id="destination-picks-label"')
+        block = html[i : html.index("</div>", html.index("picks-row", i))]
+        return re.findall(r'data-value="([^"]*)"', block)
+
+    def test_destination_offers_previously_used_banks(self):
+        r = self.client.get(reverse("exchange-create"))
+        self.assertIn("Freedom", self._picks(r.content.decode()))
+
+    def test_a_destination_bank_becomes_a_suggestion(self):
+        # Prior was only ever recorded as a destination, never as a source.
+        r = self.client.get(reverse("exchange-create"))
+        self.assertIn("Prior", self._picks(r.content.decode()))
+
+    def test_the_chips_fill_the_destination_input(self):
+        r = self.client.get(reverse("exchange-create"))
+        i = r.content.decode().index('id="destination-picks-label"')
+        block = r.content.decode()[i : i + 900]
+        self.assertIn('data-target="id_received_provider"', block)
+
+    def test_editing_a_transfer_drops_its_own_two_banks(self):
+        t = Exchange.objects.get(received_provider="Prior")
+        r = self.client.get(reverse("exchange-edit", args=[t.pk]))
+        picks = self._picks(r.content.decode())
+        # Its own destination is already in the field, and its source is where
+        # the money is leaving from — neither is a useful suggestion.
+        self.assertNotIn("Prior", picks)
+        self.assertNotIn("Белинвестбанк", picks)
+        self.assertIn("Freedom", picks)
+
+
+@override_settings(LANGUAGE_CODE="en")
+class DestinationDisclosureTests(SignedIn, TestCase):
+    """Inside the currency gate, the field folds behind a caret.
+
+    Most transfers stay within one bank, where the destination adds nothing —
+    so it is collapsed by default and opened by the few who need it. It starts
+    open whenever there is already something to see, since a saved value
+    behind a closed caret reads as a value that was lost.
+    """
+
+    def _details(self, html):
+        i = html.index('class="disclose"')
+        start = html.rindex("<details", 0, i + 1)
+        return html[start : html.index(">", i)]
+
+    def test_the_field_sits_inside_a_disclosure(self):
+        r = self.client.get(reverse("exchange-create"))
+        html = r.content.decode()
+        # The disclosure is inside the currency-gated row, not around it.
+        row = html.index('class="field js-destination')
+        self.assertLess(row, html.index('class="disclose"'))
+        self.assertLess(html.index('class="disclose"'), html.index('name="received_provider"'))
+
+    def test_a_blank_form_starts_collapsed(self):
+        r = self.client.get(reverse("exchange-create"))
+        self.assertNotIn("open", self._details(r.content.decode()))
+
+    def test_a_saved_destination_starts_open(self):
+        t = make(
+            "1000",
+            Currency.BYN,
+            "1000",
+            Currency.BYN,
+            "Белинвестбанк",
+            received_provider="Prior",
+            owner=self.user,
+        )
+        r = self.client.get(reverse("exchange-edit", args=[t.pk]))
+        self.assertIn("open", self._details(r.content.decode()))
+
+    def test_a_transfer_without_a_destination_stays_collapsed(self):
+        t = make(
+            "1000", Currency.BYN, "1000", Currency.BYN, "Prior", owner=self.user
+        )
+        r = self.client.get(reverse("exchange-edit", args=[t.pk]))
+        self.assertNotIn("open", self._details(r.content.decode()))
+
+    def test_the_summary_carries_the_field_label(self):
+        r = self.client.get(reverse("exchange-create"))
+        html = r.content.decode()
+        i = html.index("<summary>")
+        self.assertIn("Money ends up at", html[i : html.index("</summary>", i)])
+
+    def test_the_input_keeps_a_label_for_screen_readers(self):
+        # The visible label became the summary, so the input needs its own.
+        r = self.client.get(reverse("exchange-create"))
+        html = r.content.decode()
+        i = html.index('for="id_received_provider"')
+        self.assertIn("sr-only", html[html.rindex("<label", 0, i) : i])
+
+    def test_the_stylesheet_draws_a_caret(self):
+        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        self.assertIn(".disclose > summary::before", css)
+        # The default marker cannot be positioned, so it is replaced outright.
+        self.assertIn("::-webkit-details-marker", css)

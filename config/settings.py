@@ -36,6 +36,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "100.80.223.29",
+    "100.71.87.79",
     ".ts.net",
 ]
 
@@ -43,6 +44,7 @@ ALLOWED_HOSTS = [
 # dev server speaks plain HTTP, so CSRF must trust the tailnet origins too.
 CSRF_TRUSTED_ORIGINS = [
     "http://100.80.223.29:8000",
+    "http://100.71.87.79:8000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]

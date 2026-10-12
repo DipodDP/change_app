@@ -157,13 +157,18 @@
             </div>
           </div>
           <div class="chain">
+            {% comment %}
+            Same Step shape the ranked routes use, so a transfer is marked and
+            a repeated bank stays quiet here too.
+            {% endcomment %}
             {% for step in item.steps %}
-              <div class="hop"><span class="hop-cur">{{ step.spent_currency|symbol }}</span></div>
-              <span class="hop-edge">
-                {% if step.provider %}<span class="hop-via">{{ step.provider }}</span>{% endif %}
-                <span class="hop-arrow" aria-hidden="true">→</span>
+              <span class="hop"><span class="hop-cur">{{ step.leg.exchange.spent_currency|symbol }}</span></span>
+              <span class="hop-link{% if step.is_transfer %} is-move{% endif %}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6l6 6-6 6"/></svg>
+                {% if step.is_transfer %}<span class="sr-only">{% trans "transfer to" %}</span>{% endif %}
+                {% if step.show_bank %}<span class="hop-via">{{ step.bank }}</span>{% endif %}
               </span>
-              {% if forloop.last %}<div class="hop"><span class="hop-cur">{{ step.received_currency|symbol }}</span></div>{% endif %}
+              {% if forloop.last %}<span class="hop"><span class="hop-cur">{{ step.leg.exchange.received_currency|symbol }}</span></span>{% endif %}
             {% endfor %}
           </div>
         </article>

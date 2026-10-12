@@ -56,6 +56,16 @@ GET = "get"
 
 
 @dataclass(frozen=True)
+class Step:
+    """A leg plus what the chain should say about it."""
+
+    leg: Leg
+    is_transfer: bool
+    bank: str
+    show_bank: bool
+
+
+@dataclass(frozen=True)
 class Option:
     """One way to get from the base currency to the target, priced.
 
@@ -89,6 +99,50 @@ class Option:
     @property
     def legs(self) -> tuple[Leg, ...]:
         return self.path.legs
+
+    @property
+    def steps(self) -> tuple["Step", ...]:
+        """This option's legs, annotated for display."""
+        return annotate(leg.exchange for leg in self.path.legs)
+
+
+def annotate(exchanges: Iterable[Exchange]) -> tuple[Step, ...]:
+    """Legs annotated for display: is this a transfer, and is the bank new?
+
+    A chain that names the same bank on two consecutive arrows repeats itself
+    — the money never left, so saying it twice is noise. The bank is announced
+    when it changes and stays implied until it does.
+
+    Takes bare exchanges rather than an Option so a saved route, which is an
+    ordered chain and nothing more, is annotated by the same rule as a ranked
+    one instead of a second rule that drifts from it.
+    """
+    out: list[Step] = []
+    held: str | None = None
+    for exchange in exchanges:
+        leg = Leg(exchange)
+        src, dst = provider_ends(exchange)
+        moved = is_transfer(exchange)
+        if moved:
+            # A transfer is the one leg whose story is the move itself, so it
+            # names where the money lands and always says so — the next leg is
+            # what happens once it arrives.
+            label, show = dst, bool(dst)
+        else:
+            # A conversion names its bank the first time the money is there.
+            # Repeating it on the following leg would suggest a second move
+            # that never happened.
+            label = src
+            show = bool(src) and src != held
+        out.append(Step(leg=leg, is_transfer=moved, bank=label, show_bank=show))
+        # A transfer has already announced where the money lands, so the bank
+        # it names is held: the conversion that follows happens at that same
+        # bank and repeating the name says nothing new. A leg that names no
+        # bank leaves the location unknown, and carrying the previous one
+        # forward would claim the money never moved — so it clears, and the
+        # next named bank announces itself again.
+        held = dst or src or None
+    return tuple(out)
 
 
 def provider_ends(exchange: Exchange) -> tuple[str, str]:
@@ -316,33 +370,37 @@ def blocked_chain(
     for exchange in rows:
         edges.setdefault(exchange.spent_currency, []).append(exchange)
 
-    found: list[tuple[Exchange, Exchange]] = []
+    found: list[tuple[int, tuple[Exchange, Exchange]]] = []
 
     def walk(
         currency: str, visited: tuple[str, ...], legs: tuple[Exchange, ...]
     ) -> None:
-        if found or len(legs) >= max_legs:
+        if len(legs) >= max_legs:
             return
         for exchange in edges.get(currency, ()):
             nxt = exchange.received_currency
-            if nxt in visited:
+            # A transfer stays within one currency, so a plain visited check
+            # would skip every one of them and hide the chains that already
+            # move funds between banks — exactly the ones nearest to working.
+            if nxt in visited and not is_transfer(exchange):
                 continue
             chain = legs + (exchange,)
             if nxt == target:
-                broken = _first_broken_joint(chain)
-                if broken:
-                    found.append(broken)
-                    return
+                joints = _broken_joints(chain)
+                if joints:
+                    found.append((len(joints), joints[0]))
                 continue
             walk(nxt, visited + (nxt,), chain)
-            if found:
-                return
 
     walk(base, (base,), ())
     if not found:
         return None
 
-    left, right = found[0]
+    # Several chains can reach the target and break. The useful one to report
+    # is the chain closest to working: a route whose transfers are already
+    # recorded breaks in fewer places than one asking for all of them, and
+    # naming its single gap points at the leg actually missing.
+    _, (left, right) = min(found, key=lambda entry: entry[0])
     return {
         "currency": left.received_currency,
         "from_provider": provider_ends(left)[1],
@@ -350,11 +408,18 @@ def blocked_chain(
     }
 
 
-def _first_broken_joint(chain: tuple[Exchange, ...]) -> tuple[Exchange, Exchange] | None:
-    """The first pair in a chain where funds change hands between banks."""
+def _broken_joints(
+    chain: tuple[Exchange, ...],
+) -> list[tuple[Exchange, Exchange]]:
+    """Every pair in a chain where funds change hands between banks.
+
+    In order, so the first is the joint to report and the count says how far
+    the chain is from working.
+    """
+    out: list[tuple[Exchange, Exchange]] = []
     for left, right in zip(chain, chain[1:]):
         holder = provider_ends(left)[1]
         here = provider_ends(right)[0]
         if holder and here and here != holder:
-            return left, right
-    return None
+            out.append((left, right))
+    return out

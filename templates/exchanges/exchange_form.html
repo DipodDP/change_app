@@ -70,10 +70,45 @@
     {% endcomment %}
     <div class="field js-destination mt-4"
          {% if not is_transfer %}hidden{% endif %}>
-      <label for="{{ form.received_provider.id_for_label }}">{{ form.received_provider.label }}</label>
-      {{ form.received_provider }}
-      <span class="helptext">{% trans "Which bank the money landed in." %}</span>
-      {% for e in form.received_provider.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+      {% comment %}
+      Most transfers stay inside one bank, where the destination is the source
+      and saying so adds nothing. The field is folded away for that common case
+      and opened by the few who need it. <details> carries the caret, the
+      keyboard handling and the expanded state on its own, so the currency rule
+      above stays the only thing script has to drive.
+
+      It starts open whenever there is something to see — a saved destination,
+      or an error to correct — since a value hidden behind a closed caret reads
+      as a value that was lost.
+      {% endcomment %}
+      <details class="disclose" {% if form.received_provider.value or form.received_provider.errors %}open{% endif %}>
+        <summary>{{ form.received_provider.label }}</summary>
+        <div class="disclose-body">
+          <label class="sr-only" for="{{ form.received_provider.id_for_label }}">{{ form.received_provider.label }}</label>
+          {{ form.received_provider }}
+          <span class="helptext">{% trans "Which bank the money landed in." %}</span>
+          {% for e in form.received_provider.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+
+          {% comment %}
+          Same recall-over-typing idea as the source bank above. The source
+          itself is left out of these: a transfer that lands where it started
+          is not a transfer, so offering it would only invite a row that
+          cannot route.
+          {% endcomment %}
+          {% if destination_picks %}
+            <div class="picks mt-2">
+              <span class="picks-label" id="destination-picks-label">{% trans "already used:" %}</span>
+              <div class="picks-row" role="group" aria-labelledby="destination-picks-label">
+                {% for pick in destination_picks %}
+                  <button type="button" class="chip js-fill"
+                          data-target="{{ form.received_provider.id_for_label }}"
+                          data-value="{{ pick.name }}">{{ pick.label }}</button>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </details>
     </div>
 
     {% if is_edit %}
@@ -124,8 +159,13 @@ document.querySelectorAll('.js-fill').forEach(function (chip) {
     var transfer = spent.value === received.value;
     row.hidden = !transfer;
     // Clearing on the way out keeps a stale bank from being saved against a
-    // conversion the user has since switched to.
-    if (!transfer) { row.querySelector('input').value = ''; }
+    // conversion the user has since switched to. The disclosure folds shut
+    // with it, so the row does not come back open around an empty field.
+    if (!transfer) {
+      row.querySelector('input').value = '';
+      var details = row.querySelector('details');
+      if (details) { details.open = false; }
+    }
   }
   spent.addEventListener('change', sync);
   received.addEventListener('change', sync);
