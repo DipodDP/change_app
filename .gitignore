@@ -4,3 +4,12 @@ __pycache__/
 *.pyc
 db.sqlite3
 *.mo
+
+# AI tooling: vendored skills and local settings
+.claude/
+
+# Impeccable session state; config.json and
+# design.json (DESIGN.md sidecar) stay tracked
+.impeccable/live/
+.impeccable/critique/
+.impeccable/hook.cache.json

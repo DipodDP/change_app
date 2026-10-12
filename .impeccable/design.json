@@ -1,0 +1,396 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-07T10:58:47Z",
+  "title": "Design System: Change",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ledger Black",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#141f38",
+          "#22335e",
+          "#2f4884",
+          "#3c5da9",
+          "#5676c3",
+          "#879ed4",
+          "#bbc8e7",
+          "#ecf0f8"
+        ]
+      },
+      "ground-deep": {
+        "role": "neutral",
+        "displayName": "Recessed Black",
+        "canonical": "#0a0f1e",
+        "tonalRamp": [
+          "#131d39",
+          "#203060",
+          "#2d4386",
+          "#3956ac",
+          "#5370c6",
+          "#8599d6",
+          "#bac6e8",
+          "#eceff9"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Slate Surface",
+        "canonical": "#172033",
+        "tonalRamp": [
+          "#182135",
+          "#283758",
+          "#374d7b",
+          "#47639e",
+          "#617db8",
+          "#8fa2cc",
+          "#c0cbe2",
+          "#edf1f7"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Slate",
+        "canonical": "#1e293b",
+        "tonalRamp": [
+          "#1a2333",
+          "#2b3b55",
+          "#3c5276",
+          "#4d6a98",
+          "#6783b2",
+          "#93a7c8",
+          "#c2cde0",
+          "#eef1f6"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#2c3a52",
+        "tonalRamp": [
+          "#1b2332",
+          "#2d3b53",
+          "#3e5274",
+          "#506a95",
+          "#6a83af",
+          "#95a7c6",
+          "#c3cddf",
+          "#eef1f6"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "#f8fafc",
+        "tonalRamp": [
+          "#172636",
+          "#264059",
+          "#36597d",
+          "#4573a1",
+          "#5e8cba",
+          "#8dadce",
+          "#bfd1e3",
+          "#edf2f7"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "canonical": "#94a3b8",
+        "tonalRamp": [
+          "#1f252e",
+          "#333e4d",
+          "#47566b",
+          "#5c6f8a",
+          "#7588a3",
+          "#9dabbe",
+          "#c8d0da",
+          "#f0f2f5"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Faint Slate",
+        "canonical": "#8496ab",
+        "tonalRamp": [
+          "#1f262d",
+          "#343f4c",
+          "#48586a",
+          "#5d7188",
+          "#778ba2",
+          "#9eacbd",
+          "#c8d0da",
+          "#f0f2f5"
+        ]
+      },
+      "amber": {
+        "role": "primary",
+        "displayName": "Signal Amber",
+        "canonical": "#f59e0b",
+        "tonalRamp": [
+          "#492f03",
+          "#7a4f05",
+          "#ab6e07",
+          "#dc8e09",
+          "#f6a723",
+          "#f9c162",
+          "#fbdca7",
+          "#fef5e7"
+        ]
+      },
+      "amber-soft": {
+        "role": "primary",
+        "displayName": "Lifted Amber",
+        "canonical": "#fbbf24",
+        "tonalRamp": [
+          "#4b3701",
+          "#7d5b02",
+          "#af7f03",
+          "#e1a404",
+          "#fbbd1e",
+          "#fcd05f",
+          "#fde5a5",
+          "#fff8e6"
+        ]
+      },
+      "violet": {
+        "role": "secondary",
+        "displayName": "Action Indigo",
+        "canonical": "#4f46e5",
+        "tonalRamp": [
+          "#08062d",
+          "#130e62",
+          "#1d1598",
+          "#271dce",
+          "#534ade",
+          "#8b86df",
+          "#bdbbe8",
+          "#eaeaf6"
+        ]
+      },
+      "violet-deep": {
+        "role": "secondary",
+        "displayName": "Action Indigo Pressed",
+        "canonical": "#4338ca",
+        "tonalRamp": [
+          "#0d0b28",
+          "#1c1859",
+          "#2c2489",
+          "#3c31b9",
+          "#645bcc",
+          "#9590d5",
+          "#c2c0e2",
+          "#ecebf4"
+        ]
+      },
+      "violet-hi": {
+        "role": "secondary",
+        "displayName": "Link Indigo",
+        "canonical": "#a5b4fc",
+        "tonalRamp": [
+          "#020a31",
+          "#04166d",
+          "#0622a8",
+          "#082de3",
+          "#3958ef",
+          "#7b8eea",
+          "#b5bfed",
+          "#e8ebf7"
+        ]
+      },
+      "green": {
+        "role": "tertiary",
+        "displayName": "Confirm Green",
+        "canonical": "#34d399",
+        "tonalRamp": [
+          "#0e3f2d",
+          "#17694b",
+          "#209369",
+          "#29bd87",
+          "#42d6a0",
+          "#79e2bc",
+          "#b4efd9",
+          "#eafaf4"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Alert Red",
+        "canonical": "#f87171",
+        "tonalRamp": [
+          "#490404",
+          "#7a0606",
+          "#aa0808",
+          "#db0b0b",
+          "#f42424",
+          "#f76363",
+          "#fba8a8",
+          "#fee7e7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Payout",
+        "purpose": "The payout figure. The largest type on any screen; mono, tabular, tight tracking."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Empty-state headings."
+      },
+      "title": {
+        "displayName": "Section Title",
+        "purpose": "Uppercase section headings; one step larger and brighter on the result card."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose and explanatory copy."
+      },
+      "bodySm": {
+        "displayName": "Body Small",
+        "purpose": "Dense body text: pills, chips, list rows, and table-cell prose."
+      },
+      "numeric": {
+        "displayName": "Figure",
+        "purpose": "Table figures, rates, chain hops. Always tabular."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels and hints."
+      },
+      "eyebrow": {
+        "displayName": "Eyebrow",
+        "purpose": "Uppercase eyebrows: table headers, tags, and the ledger column labels."
+      },
+      "micro": {
+        "displayName": "Micro Label",
+        "purpose": "The smallest uppercase label. Bank names on chain arrows and the payout caption."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state",
+        "value": "180ms ease",
+        "purpose": "The only transition in the system. Colour and border feedback on hover and focus; never entrances."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "720px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action per view.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Compare</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:11px 18px;border-radius:8px;border:1px solid transparent;font-family:'Fira Sans',system-ui,sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:background-color 180ms ease,border-color 180ms ease,color 180ms ease}.ds-btn-primary{background:#4f46e5;color:#fff}.ds-btn-primary:hover{background:#4338ca}.ds-btn-primary:focus-visible{outline:2px solid #f59e0b;outline-offset:2px;border-radius:4px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action on a card.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">Edit</button>",
+      "css": ".ds-btn-ghost{background:#1e293b;border:1px solid #2c3a52;color:#f8fafc;min-height:44px;padding:11px 18px;border-radius:8px;font-family:'Fira Sans',system-ui,sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:background-color 180ms ease,border-color 180ms ease}.ds-btn-ghost:hover{background:#26344c}.ds-btn-ghost:focus-visible{outline:2px solid #f59e0b;outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action. Quiet at rest, unmistakable on hover.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Delete</button>",
+      "css": ".ds-btn-danger{background:none;border:1px solid #7f2b2b;color:#f87171;min-height:44px;padding:11px 18px;border-radius:8px;font-family:'Fira Sans',system-ui,sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:background-color 180ms ease}.ds-btn-danger:hover{background:#3a1a1a}.ds-btn-danger:focus-visible{outline:2px solid #f59e0b;outline-offset:2px}"
+    },
+    {
+      "name": "Amount Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A recessed well, mono with tabular figures.",
+      "html": "<input class=\"ds-input\" value=\"100\" inputmode=\"decimal\">",
+      "css": ".ds-input{background:#0a0f1e;border:1px solid #2c3a52;border-radius:8px;padding:11px 12px;min-height:44px;width:100%;color:#f8fafc;font-family:'Fira Code',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:16px}.ds-input:hover{border-color:#3b4d69}.ds-input:focus-visible{outline:2px solid #f59e0b;outline-offset:2px}"
+    },
+    {
+      "name": "Winning Route Card",
+      "kind": "card",
+      "refersTo": "card-result",
+      "description": "The answer. Amber border over a faint amber wash; the payout is the largest type on the page.",
+      "html": "<article class=\"ds-route\"><span class=\"ds-tag\">★ Best rate</span><div class=\"ds-payout\"><div class=\"ds-payout-label\">You get</div><div class=\"ds-payout-amt\">10 285.31 Ft</div></div></article>",
+      "css": ".ds-route{border:1px solid #f59e0b;border-radius:12px;background:linear-gradient(180deg,rgba(245,158,11,.09),rgba(245,158,11,.02));padding:16px 24px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;font-family:'Fira Sans',system-ui,sans-serif}.ds-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(245,158,11,.16);color:#fbbf24;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}.ds-payout{text-align:right}.ds-payout-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8496ab;margin-bottom:2px}.ds-payout-amt{font-family:'Fira Code',ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;letter-spacing:-.02em;color:#f59e0b}"
+    },
+    {
+      "name": "Cost Tag",
+      "kind": "chip",
+      "refersTo": "tag-cost",
+      "description": "How far a losing route falls behind the winner.",
+      "html": "<span class=\"ds-tag-cost\">+3.08%</span>",
+      "css": ".ds-tag-cost{display:inline-flex;background:rgba(248,113,113,.14);color:#f87171;border-radius:999px;padding:3px 10px;font-family:'Fira Sans',system-ui,sans-serif;font-size:12px;font-weight:600}"
+    },
+    {
+      "name": "Chain Hop",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "A route leg. The bank is named on the arrow, because the arrow is the conversion.",
+      "html": "<div class=\"ds-chain\"><span class=\"ds-hop\">BYN</span><span class=\"ds-edge\"><span class=\"ds-via\">Prior</span><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></span><span class=\"ds-hop\">€</span></div>",
+      "css": ".ds-chain{display:flex;align-items:center;gap:8px}.ds-hop{background:#0a0f1e;border:1px solid #2c3a52;border-radius:8px;padding:6px 11px;font-family:'Fira Code',ui-monospace,monospace;font-size:14px;font-weight:600;color:#f8fafc}.ds-edge{display:flex;flex-direction:column;align-items:center;color:#8496ab}.ds-via{font-family:'Fira Sans',system-ui,sans-serif;font-size:11px;color:#8496ab}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ledger Light",
+    "overview": "A dark room where only the numbers glow. The ground is near-black because the figures written on it are the entire product; amber is the money, and everything else — labels, chrome, borders — recedes into slate so that nothing competes with a payout figure. The interface is the page a ledger is written on, not an instrument panel.\n\nThis system is flat on purpose. A ledger has no shadows: depth comes from tonal layering, one surface tone lifted off another, with a single hairline border to separate them. Motion is similarly restrained — one duration, one easing, used only to acknowledge a pointer. Nothing animates to impress.\n\nNumbers are set in Fira Code with tabular figures wherever they appear, so digits align in a column and two amounts can be compared by eye without reading them. Prose is set in Fira Sans and stays quiet. The typographic hierarchy inverts the usual arrangement: the largest type on the page is not a heading but a sum of money.",
+    "keyCharacteristics": [
+      "Near-black OLED ground; tonal layering instead of shadow",
+      "Amber reserved for money and the winning route",
+      "Violet for actions, never for data",
+      "Monospaced tabular numerals for every figure",
+      "One motion duration (180ms ease), pointer feedback only",
+      "Bilingual EN/RU; layouts absorb ~30% string growth"
+    ],
+    "rules": [
+      {
+        "name": "The Money Rule",
+        "body": "Amber marks money and the winner — nothing else. The winning payout, the tag that names it, and the brand mark. The focus ring is the one carve-out, because an accessibility affordance must be the most visible thing on the page when it appears. When everything is amber, no route is the best one.",
+        "section": "colors"
+      },
+      {
+        "name": "The Actions Are Not Data Rule",
+        "body": "Violet belongs to controls the user presses. A figure is never violet; a button is never amber.",
+        "section": "colors"
+      },
+      {
+        "name": "The Recession Rule",
+        "body": "Inputs are darker than the surface holding them. A field is a well the user fills, not a raised element.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Set every figure in mono with tabular numerals",
+      "Keep amber for money and the winner; let its rarity do the work",
+      "Express depth as tone, and grouping as space",
+      "Give a destructive action its own confirmation page with real counts",
+      "Name the bank on the arrow, where the conversion happens",
+      "Write for EN and RU together; leave room for ~30% growth",
+      "State a rate as historical; it came from a conversion already made"
+    ],
+    "donts": [
+      "Add a shadow to a flat surface, or a halo with no offset",
+      "Use amber for ordinary emphasis, or violet for a number",
+      "Nest a card inside a card",
+      "Introduce a spacing value between the scale's steps",
+      "Let a section's internal padding rival the gap between sections",
+      "Imply a rate is a live market quote — it never is",
+      "Add a second motion duration or an entrance animation",
+      "Use an emoji or a Unicode glyph where an icon belongs (icons are drawn SVG, 2–2.5px stroke, currentColor)"
+    ]
+  }
+}
