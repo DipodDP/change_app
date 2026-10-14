@@ -44,7 +44,14 @@
       </div>
       <div class="field">
         <label for="{{ form.made_on.id_for_label }}">{{ form.made_on.label }}</label>
-        {{ form.made_on }}
+        <div class="date-field">
+          {{ form.made_on }}
+          <button type="button" class="date-pick js-date-pick" aria-label="{% trans "Pick a date" %}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          </button>
+          {# The browser's own calendar, borrowed for picking only: unnamed, so it is never submitted. #}
+          <input class="date-native" type="date" tabindex="-1" aria-hidden="true">
+        </div>
         <span class="helptext">{% trans "Compare uses your latest rate for each bank and currency pair." %}</span>
         {{ form.made_on.errors }}
       </div>
@@ -130,6 +137,34 @@
 
 {% block extra_js %}
 <script>
+// The calendar button opens the browser's date picker on a hidden date input,
+// then writes the pick into the text field in the page's own format.
+document.querySelectorAll('.js-date-pick').forEach(function (button) {
+  var box = button.parentNode;
+  var text = box.querySelector('input[name]');
+  var picker = box.querySelector('.date-native');
+  var order = text.dataset.format.match(/%[dmY]/g);
+  function toIso(value) {
+    var parts = value.match(/\d+/g), got = {};
+    if (!parts || parts.length !== 3) { return ''; }
+    order.forEach(function (token, i) { got[token] = parts[i]; });
+    if (got['%Y'].length !== 4) { return ''; }
+    return got['%Y'] + '-' + ('0' + got['%m']).slice(-2) + '-' + ('0' + got['%d']).slice(-2);
+  }
+  // The device's today, not the server's: that is the user's own date.
+  var now = new Date();
+  picker.max = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+  button.addEventListener('click', function () {
+    picker.value = toIso(text.value);
+    if (picker.showPicker) { picker.showPicker(); } else { picker.focus(); }
+  });
+  picker.addEventListener('change', function () {
+    if (!picker.value) { return; }
+    var p = picker.value.split('-');
+    text.value = text.dataset.format.replace('%Y', p[0]).replace('%m', p[1]).replace('%d', p[2]);
+  });
+});
+
 document.querySelectorAll('.js-fill').forEach(function (chip) {
   chip.addEventListener('click', function () {
     var field = document.getElementById(chip.dataset.target);

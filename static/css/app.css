@@ -532,7 +532,38 @@ html {
 .input:hover, .select:hover { border-color: var(--line-field-hover); }
 /* Mono is for figures. A bank name or a password is language, so only the
    fields that hold an amount (.num) or a date take the numeric face. */
-.input.num, .input[type="date"] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.input.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* A typed date with the browser's calendar one tap away. The real date input
+   only lends its picker: it sits invisible under the button, so the picker
+   opens from there, and it never takes focus or a value of its own. */
+.date-field { position: relative; }
+.date-field .input { padding-right: var(--tap); }
+.date-pick {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--tap);
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color .18s ease;
+}
+.date-pick:hover { color: var(--ink); }
+.date-native {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--tap);
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 .select { cursor: pointer; }
 
 .swap {
@@ -825,8 +856,23 @@ td.num { white-space: nowrap; }
 .steps li::marker { font-family: var(--mono); color: var(--ink-faint); }
 .steps b { color: var(--ink); font-weight: 600; }
 
-/* Sits under the ledger heading, before the rows it describes. */
-.guest-note { margin: 0 0 var(--s-4); }
+/* The guest's one ask. A hairline strip rather than a card: it sits above
+   the work, not beside it, and goes away once there is an account. */
+.keep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--ink-dim);
+}
+.keep p { margin: 0; max-width: 52ch; }
+.keep b { color: var(--ink); font-weight: 600; }
+.keep-actions { display: flex; gap: var(--s-2); }
 
 .msg {
   border-radius: var(--r-sm);

@@ -15,7 +15,7 @@
     {% blocktrans count n=exchange_count %}{{ n }} exchange{% plural %}{{ n }} exchanges{% endblocktrans %}
     {% trans "will be permanently deleted." %}
   </p>
-  <p class="hint">{% trans "This cannot be undone, and there is no export. Your recorded rates are the only copy." %}</p>
+  <p class="hint">{% trans "This cannot be undone. Your recorded rates are the only copy." %}</p>
 
   <form method="post">
     {% csrf_token %}

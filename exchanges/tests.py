@@ -736,11 +736,23 @@ class GuestTests(TestCase):
         self.assertContains(r, reverse("register"))
         self.assertEqual(Exchange.objects.exclude(guest_key="").count(), 2)
 
-    def test_guest_ledger_offers_an_account(self):
+    def test_guest_with_data_is_asked_to_register_first_thing(self):
+        # The ask comes before the comparison, where a phone shows it without
+        # scrolling, and it is a button, not a link buried in small print.
         self._record()
-        r = self.client.get(reverse("dashboard"))
-        ledger = r.content.decode().split('id="l-h"')[1]
-        self.assertIn(reverse("register"), ledger)
+        body = self.client.get(reverse("dashboard")).content.decode()
+        keep = body[body.index('class="keep"'):body.index('id="q-h"')]
+        self.assertIn(f'class="btn btn-primary btn-sm" href="{reverse("register")}"', keep)
+        self.assertIn(reverse("login"), keep)
+
+    def test_empty_guest_and_accounts_are_not_asked(self):
+        from django.contrib.auth import get_user_model
+
+        self.assertNotContains(self.client.get(reverse("dashboard")), 'class="keep"')
+        self._record()
+        user = get_user_model().objects.create_user("ann", password="pw-ann-12345")
+        self.client.force_login(user)
+        self.assertNotContains(self.client.get(reverse("dashboard")), 'class="keep"')
 
     def test_purge_removes_only_abandoned_guest_rows(self):
         from django.core.management import call_command
@@ -2050,6 +2062,56 @@ class MadeOnTests(SignedIn, TestCase):
             },
         )
         self.assertEqual(str(Exchange.objects.get().made_on), "2026-03-01")
+
+    def _record_on(self, made_on):
+        return self.client.post(
+            reverse("exchange-create"),
+            {"spent_amount": "100", "spent_currency": "BYN",
+             "received_amount": "30", "received_currency": "USD",
+             "made_on": made_on.isoformat()},
+        )
+
+    @override_settings(LANGUAGE_CODE="en")
+    def test_a_future_date_is_refused(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        r = self._record_on(timezone.localdate() + timedelta(days=2))
+        self.assertContains(r, "cannot be in the future")
+        self.assertFalse(Exchange.objects.exists())
+
+    def test_tomorrow_on_the_server_is_today_somewhere(self):
+        # The server keeps UTC; a traveller east of it is already a day ahead.
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        self._record_on(timezone.localdate() + timedelta(days=1))
+        self.assertTrue(Exchange.objects.exists())
+
+    @override_settings(LANGUAGE_CODE="ru")
+    def test_russian_form_shows_and_takes_a_russian_date(self):
+        # The browser's own date picker draws its browser's locale, so an
+        # English browser showed mm/dd/yyyy on the Russian page.
+        e = make(100, Currency.BYN, 30, Currency.USD, owner=self.user)
+        Exchange.objects.filter(pk=e.pk).update(made_on="2026-03-05")
+        body = self.client.get(reverse("exchange-edit", args=[e.pk])).content.decode()
+        # The calendar is the browser's own, opened from a button and kept
+        # out of the form: only the text field is submitted.
+        self.assertIn('data-format="%d.%m.%Y"', body)
+        self.assertIn('class="date-native" type="date"', body)
+        self.assertNotIn('type="date" name=', body)
+        self.assertIn('value="05.03.2026"', body)
+        self.assertIn('placeholder="ДД.ММ.ГГГГ"', body)
+
+        self.client.post(
+            reverse("exchange-edit", args=[e.pk]),
+            {"spent_amount": "100", "spent_currency": "BYN",
+             "received_amount": "30", "received_currency": "USD",
+             "made_on": "07.04.2026"},
+        )
+        self.assertEqual(str(Exchange.objects.get(pk=e.pk).made_on), "2026-04-07")
 
     def test_ledger_lists_by_date_not_entry_order(self):
         recent = make(100, Currency.BYN, 30, Currency.USD)

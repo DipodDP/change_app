@@ -1,7 +1,8 @@
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django import forms
-from django.utils import timezone
+from django.utils import formats, timezone
 from django.utils.translation import gettext_lazy as _
 
 from django.contrib.auth import get_user_model
@@ -68,7 +69,15 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
         }
         field_classes = {"spent_amount": AmountField, "received_amount": AmountField}
         widgets = {
-            "made_on": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            # Text in the page's own date format: a date input draws the
+            # browser's locale instead, so an English browser showed mm/dd/yyyy
+            # on the Russian page. The template pairs it with a calendar button
+            # that borrows the browser's picker. No inputmode: a numeric keypad
+            # has no dot to type 05.03.2026 with.
+            "made_on": forms.DateInput(
+                attrs={"autocomplete": "off", "class": "num",
+                       "placeholder": _("YYYY-MM-DD")}
+            ),
             "provider": forms.TextInput(
                 attrs={"placeholder": _("e.g. Prior, Wise, Revolut")}
             ),
@@ -99,10 +108,19 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
                 self.initial.setdefault("spent_currency", spent)
                 self.initial.setdefault("received_currency", received)
         self.fields["made_on"].required = False
+        # The calendar writes its pick back in the format the field shows.
+        self.fields["made_on"].widget.attrs["data-format"] = formats.get_format(
+            "DATE_INPUT_FORMATS"
+        )[0]
 
     def clean_made_on(self):
         # A cleared date means the same as an untouched one: it happened today.
-        return self.cleaned_data.get("made_on") or timezone.localdate()
+        made_on = self.cleaned_data.get("made_on") or timezone.localdate()
+        # A rate is a conversion already made. The server keeps UTC, so one
+        # day of slack lets a traveller east of it record their own today.
+        if made_on > timezone.localdate() + timedelta(days=1):
+            raise forms.ValidationError(_("The date cannot be in the future."))
+        return made_on
 
 
 class CompareForm(StyledFormMixin, forms.Form):

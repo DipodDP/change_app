@@ -249,7 +249,7 @@ def exchange_delete(request, pk):
 def reset_data(request):
     """Clear all — wipe every exchange this user owns.
 
-    It removes everything with no undo and no export, so it goes through the
+    It removes everything with no undo, so it goes through the
     same confirmation a single deletion already gets — asking less for the
     larger loss would be exactly backwards.
     """
