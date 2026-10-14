@@ -10,6 +10,8 @@ colors:
   line: "#2c3a52"
   line-soft: "#223049"
   line-hover: "#3b4d69"
+  line-field: "#64779a"
+  line-field-hover: "#8496ab"
   ink: "#f8fafc"
   ink-dim: "#94a3b8"
   ink-faint: "#8496ab"
@@ -18,8 +20,13 @@ colors:
   violet: "#4f46e5"
   violet-deep: "#4338ca"
   violet-hi: "#a5b4fc"
+  violet-hi-hover: "#c7d2fe"
+  on-accent: "#ffffff"
   green: "#34d399"
   red: "#f87171"
+  red-soft: "#fca5a5"
+  success-line: "#1d6a52"
+  success-ink: "#a7f3d0"
   danger-line: "#7f2b2b"
   danger-wash: "#3a1a1a"
 typography:
@@ -187,6 +194,8 @@ A cold slate ground with two signals: amber for value, indigo for intent.
 ### Tertiary
 - **Confirm Green** (#34d399): Successful outcomes only.
 - **Alert Red** (#f87171): Losing-route deltas, destructive actions, errors.
+- **Lifted Red** (#fca5a5): Text-weight red on a red wash — the shortfall tag —
+  where the base red falls to 4.33:1 (6.31:1 here).
 
 ### Neutral
 - **Ledger Black** (#0f172a): The page ground.
@@ -196,6 +205,9 @@ A cold slate ground with two signals: amber for value, indigo for intent.
 - **Raised Slate** (#1e293b): The result card and route cards; one step nearer
   the reader than a standard card.
 - **Hairline** (#2c3a52) / **Soft Hairline** (#223049): Separation at 1px.
+- **Field Line** (#64779a, #8496ab on hover): The edge of an input or select.
+  A field must be findable by its boundary (WCAG 1.4.11, 3:1); the hairline is
+  1.6:1, so controls get their own line — 3.6:1 on a card.
 - **Paper White** (#f8fafc): Primary text.
 - **Muted Slate** (#94a3b8): Secondary text. 6.9:1 on the ground.
 - **Faint Slate** (#8496ab): Tertiary text. Clears 4.5:1 on every surface it
@@ -257,12 +269,15 @@ one (48px vs 24px; 32px vs 16px on narrow viewports). This ratio is what makes
 proximity carry grouping, so a heading belongs to the rows beneath it before
 any border is drawn. Borders confirm grouping; they never create it.
 
-**Breakpoints:** 720px (query bar reflows to a single column) and 640px (the
-ledger table becomes one card per row, each column header traveling with its
-value as a label).
+**Breakpoints:** 720px (the query bar puts the amount on its own row, then
+From → To side by side with the arrow kept between them) and 640px (cards
+tighten their padding). The ledger does not follow the viewport: it is a
+container, and below 760px of its own width the table becomes one card per
+row, each column header traveling with its value as a label. Six columns need
+about 770px to keep every figure on one line, and figures never wrap.
 
-**Density:** the ledger is reference material and is set tighter (8px/12px
-cell padding) than the comparison it supports. Two usage scenes are equally
+**Density:** the ledger is reference material and is set tighter (8px cell
+padding, 16px between columns) than the comparison it supports. Two usage scenes are equally
 first-class: a phone at the counter and a desk reviewing later.
 
 ## Elevation & Depth
@@ -311,9 +326,10 @@ their own page, never in a modal.
 lifts to Raised Slate; the ledger card drops its background entirely and dims
 its heading, so the evidence recedes behind the answer. Cards are never nested.
 
-**Inputs.** Recessed to Recessed Black, 8px radius, 44px minimum height, mono
-with tabular figures. Border brightens on hover; the amber focus ring carries
-focus.
+**Inputs.** Recessed to Recessed Black, 8px radius, 44px minimum height, edged
+in Field Line. Number and date fields are mono with tabular figures; text
+fields stay in Fira Sans. Border brightens on hover; the amber focus ring
+carries focus.
 
 **Tags.** Pill-shaped, 12px/600, on a tinted wash of their own hue — amber for
 the winner, red for a shortfall percentage.
@@ -323,8 +339,9 @@ with the bank named above each arrow. The bank belongs to the arrow — the
 conversion — not to the currency.
 
 **Tables.** Hairline row separators, no vertical rules, no zebra striping.
-Figures are mono and right-aligned; the row action sits at the end. Below
-640px the table becomes cards and the header cells become inline labels.
+Figures are mono and right-aligned; the row action sits at the end. When the
+ledger is narrower than 760px the table becomes cards and the header cells
+become inline labels.
 
 ## Do's and Don'ts
 

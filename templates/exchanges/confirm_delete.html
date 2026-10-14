@@ -8,7 +8,7 @@
 {% block content %}
 <section class="card" aria-labelledby="d-h">
   <div class="card-head">
-    <h2 id="d-h">{% trans "Delete this?" %}</h2>
+    <h2 id="d-h">{% trans "Delete this exchange?" %}</h2>
   </div>
 
   <p class="mt-0">{% blocktrans with item=object %}“{{ item }}” will be removed permanently.{% endblocktrans %}</p>
@@ -16,7 +16,7 @@
   <form method="post">
     {% csrf_token %}
     <div class="form-actions">
-      <button type="submit" class="btn btn-danger">{% trans "Yes, delete" %}</button>
+      <button type="submit" class="btn btn-danger">{% trans "Delete exchange" %}</button>
       <a class="btn btn-quiet" href="{% url 'dashboard' %}">{% trans "Keep it" %}</a>
     </div>
   </form>

@@ -74,10 +74,20 @@
   {% block content %}{% endblock %}
 </main>
 
+<script>
+// A second tap while the first submit is still travelling would record the
+// same exchange twice. The submitter stays enabled so its name and value are
+// still sent; returning to the page through the back button re-arms the form.
+document.addEventListener('submit', function (e) {
+  if (e.target.dataset.sent) { e.preventDefault(); return; }
+  e.target.dataset.sent = '1';
+});
+window.addEventListener('pageshow', function () {
+  document.querySelectorAll('form[data-sent]').forEach(function (f) { delete f.dataset.sent; });
+});
+</script>
+
 {% block extra_js %}{% endblock %}
 
-<!-- impeccable-live-start -->
-<script src="http://localhost:8400/live.js?token=8985e0e1-1b26-47f7-91ac-d59f066400fa"></script>
-<!-- impeccable-live-end -->
 </body>
 </html>

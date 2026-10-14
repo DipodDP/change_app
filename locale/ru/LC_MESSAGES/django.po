@@ -642,3 +642,19 @@ msgstr "Ваши обмены видны только вам."
 
 msgid "older rate"
 msgstr "старый курс"
+
+#. Ledger date: day, abbreviated month, year. Russian abbreviates in lowercase.
+msgid "j M Y"
+msgstr "j b Y"
+
+msgid "Delete this exchange?"
+msgstr "Удалить этот обмен?"
+
+msgid "Delete exchange"
+msgstr "Удалить обмен"
+
+msgid "Delete all exchanges"
+msgstr "Удалить все обмены"
+
+msgid "Compare uses your latest rate for each bank and currency pair."
+msgstr "Для сравнения берётся последний курс по каждому банку и паре валют."

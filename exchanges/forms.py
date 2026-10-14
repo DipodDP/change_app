@@ -28,6 +28,22 @@ class StyledFormMixin:
                 widget.attrs["class"] = f"{existing} {css}".strip()
 
 
+class AmountField(forms.DecimalField):
+    """A decimal that also takes a comma and grouping spaces.
+
+    A phone keypad in a Russian region types 28,84, and people copy 1 000.00
+    from a receipt. Both mean one number; refusing them fails the user at the
+    counter for a formatting choice, not a mistake.
+    """
+
+    widget = forms.TextInput(attrs={"inputmode": "decimal", "autocomplete": "off", "class": "num"})
+
+    def to_python(self, value):
+        if isinstance(value, str):
+            value = value.replace("\u00a0", "").replace(" ", "").replace(",", ".")
+        return super().to_python(value)
+
+
 class ExchangeForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Exchange
@@ -49,14 +65,9 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             "received_provider": _("Money ends up at"),
             "made_on": _("Date"),
         }
+        field_classes = {"spent_amount": AmountField, "received_amount": AmountField}
         widgets = {
             "made_on": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "spent_amount": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0.01", "inputmode": "decimal"}
-            ),
-            "received_amount": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0.01", "inputmode": "decimal"}
-            ),
             "provider": forms.TextInput(
                 attrs={"placeholder": _("e.g. Prior, Wise, Revolut")}
             ),
@@ -73,6 +84,12 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             choices = currency_choices(exchanges)
             for name in ("spent_currency", "received_currency"):
                 self.fields[name].choices = choices
+            # Both selects would otherwise open on the same currency, which is
+            # a transfer: the form would describe the rare case by default.
+            # The user's two most-used currencies are the likely conversion.
+            if not self.is_bound and not self.instance.pk:
+                self.initial.setdefault("spent_currency", choices[0][0])
+                self.initial.setdefault("received_currency", choices[1][0])
         self.fields["made_on"].required = False
 
     def clean_made_on(self):
@@ -95,13 +112,12 @@ class CompareForm(StyledFormMixin, forms.Form):
         required=False,
         widget=forms.RadioSelect,
     )
-    amount = forms.DecimalField(
+    amount = AmountField(
         label=_("Amount"),
         min_value=Decimal("0.01"),
         max_digits=18,
         decimal_places=2,
         initial=Decimal("100"),
-        widget=forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal"}),
     )
     base = forms.ChoiceField(
         label=_("From"), choices=Currency.choices, initial=Currency.BYN

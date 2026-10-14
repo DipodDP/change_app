@@ -11,31 +11,37 @@
     <span class="hint">{% trans "Rates come from your own recorded exchanges — commission already included." %}</span>
   </div>
 
+  {% comment %}
+  Built from the form, not the result: a rejected query has no result, and
+  switching direction must keep what the user typed rather than blank it.
+  {% endcomment %}
+  {% with b=form.base.value|urlencode t=form.target.value|urlencode a=form.amount.value|urlencode %}
   <div class="modes" role="group" aria-label="{% trans "Direction" %}">
-    <a class="pill" href="?mode=send&amp;base={{ query.base }}&amp;target={{ query.target }}&amp;amount={{ query.amount }}"
+    <a class="pill" href="?mode=send&amp;base={{ b }}&amp;target={{ t }}&amp;amount={{ a }}"
        {% if not is_get_mode %}aria-current="true"{% endif %}>{% trans "I send" %}</a>
-    <a class="pill" href="?mode=get&amp;base={{ query.base }}&amp;target={{ query.target }}&amp;amount={{ query.amount }}"
+    <a class="pill" href="?mode=get&amp;base={{ b }}&amp;target={{ t }}&amp;amount={{ a }}"
        {% if is_get_mode %}aria-current="true"{% endif %}>{% trans "I want to get" %}</a>
   </div>
+  {% endwith %}
 
   <form method="get" class="query">
     <input type="hidden" name="mode" value="{% if is_get_mode %}get{% else %}send{% endif %}">
     <div class="field">
       <label for="{{ form.amount.id_for_label }}">
-        {% if is_get_mode %}{% trans "I want to receive" %}{% else %}{% trans "I send" %}{% endif %}
+        {% if is_get_mode %}{% trans "I want to get" %}{% else %}{% trans "I send" %}{% endif %}
       </label>
-      <input type="number" name="amount" id="{{ form.amount.id_for_label }}" class="input"
-             step="0.01" min="0.01" inputmode="decimal"
-             value="{% if query %}{{ query.amount }}{% else %}100{% endif %}" required>
+      <input type="text" name="amount" id="{{ form.amount.id_for_label }}" class="input num"
+             inputmode="decimal" autocomplete="off" value="{{ form.amount.value|default_if_none:'' }}" required
+             {% if form.errors %}aria-invalid="true" aria-describedby="q-errors"{% endif %}>
     </div>
 
-    <div class="swap" aria-hidden="true">&nbsp;</div>
+    <div class="swap swap-gap" aria-hidden="true">&nbsp;</div>
 
     <div class="field">
       <label for="{{ form.base.id_for_label }}">{% if is_get_mode %}{% trans "Paying with" %}{% else %}{% trans "From" %}{% endif %}</label>
       <select name="base" id="{{ form.base.id_for_label }}" class="select">
         {% for code, label in form.fields.base.choices %}
-          <option value="{{ code }}" {% if query and query.base == code %}selected{% endif %}>{{ label }}</option>
+          <option value="{{ code }}" {% if form.base.value == code %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
@@ -48,7 +54,7 @@
       <label for="{{ form.target.id_for_label }}">{% if is_get_mode %}{% trans "To receive" %}{% else %}{% trans "To" %}{% endif %}</label>
       <select name="target" id="{{ form.target.id_for_label }}" class="select">
         {% for code, label in form.fields.target.choices %}
-          <option value="{{ code }}" {% if query and query.target == code %}selected{% endif %}>{{ label }}</option>
+          <option value="{{ code }}" {% if form.target.value == code %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
@@ -59,7 +65,7 @@
   </form>
 
   {% if form.errors %}
-    <ul class="errorlist">
+    <ul class="errorlist" id="q-errors">
       {% for field, errors in form.errors.items %}{% for e in errors %}<li>{{ e }}</li>{% endfor %}{% endfor %}
     </ul>
   {% endif %}
@@ -151,14 +157,14 @@
         <tbody>
           {% for e in exchanges %}
             <tr{% if e.pk not in current %} class="is-stale"{% endif %}>
-              <td class="num" data-label="{% trans "Date" %}">{{ e.made_on|date:"SHORT_DATE_FORMAT" }}</td>
+              <td class="num" data-label="{% trans "Date" %}">{{ e.made_on|date:_("j M Y") }}</td>
               <td class="num" data-label="{% trans "Spent" %}">{{ e.spent_amount|money }} {{ e.spent_currency|symbol }}</td>
               <td class="num" data-label="{% trans "Received" %}">{{ e.received_amount|money }} {{ e.received_currency|symbol }}</td>
               <td data-label="{% trans "Via" %}">{{ e.provider|default:"—" }}</td>
               <td class="right num" data-label="{% trans "Rate" %}">1 {{ e.spent_currency|symbol }} = {{ e.rate|rate }} {{ e.received_currency|symbol }}{% if e.pk not in current %}<span class="stale-note">{% trans "older rate" %}</span>{% endif %}</td>
               <td class="right cell-actions-wrap">
                 <div class="cell-actions">
-                  <a class="btn btn-ghost btn-sm" href="{% url 'exchange-edit' e.pk %}">{% trans "Edit" %}</a>
+                  <a class="btn btn-ghost btn-sm" href="{% url 'exchange-edit' e.pk %}">{% trans "Edit" %}<span class="sr-only"> {{ e }}</span></a>
                 </div>
               </td>
             </tr>

@@ -24,13 +24,13 @@
     <div class="field">
       <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
       {{ form.username }}
-      {% for e in form.username.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+      {{ form.username.errors }}
     </div>
 
     <div class="field mt-3">
       <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
       {{ form.password }}
-      {% for e in form.password.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+      {{ form.password.errors }}
     </div>
 
     <div class="form-actions">

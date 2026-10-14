@@ -1,4 +1,4 @@
-{% load i18n money %}
+{% load i18n l10n money %}
 {# One ranked option. `hide_first` drops the opening hop when the group already shows it. #}
 <article class="route {% if option.is_best %}is-best{% endif %}">
   <div class="route-top">
@@ -10,7 +10,7 @@
             {% if is_get_mode %}{% trans "Cheapest" %}{% else %}{% trans "Best rate" %}{% endif %}
           </span>
         {% else %}
-          <span class="tag tag-cost">+{{ option.penalty_pct }}%</span>
+          <span class="tag tag-cost">+{{ option.penalty_pct|unlocalize }}%</span>
         {% endif %}
       </div>
       {% comment %}

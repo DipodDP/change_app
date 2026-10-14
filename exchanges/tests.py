@@ -1918,6 +1918,7 @@ class NoSavedRoutesTests(SignedIn, TestCase):
         self.assertNotContains(response, "/route/")
         self.assertNotIn("saved_routes", response.context)
 
+
 class LatestPerLaneTests(SignedIn, TestCase):
     """A repeat of the same conversion replaces the old rate, not joins it.
 
@@ -1948,6 +1949,79 @@ class LatestPerLaneTests(SignedIn, TestCase):
         response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.context["current"], {self.new.pk})
         self.assertContains(response, "is-stale", count=2)
+
+
+@override_settings(LANGUAGE_CODE="en")
+class ClearCopyTests(SignedIn, TestCase):
+    def setUp(self):
+        self.e = make(100, Currency.BYN, 30, Currency.USD)
+        Exchange.objects.filter(pk=self.e.pk).update(made_on="2026-10-06")
+
+    def test_ledger_date_cannot_be_read_as_june(self):
+        # 10/06/2026 is October to an American and June to everyone else.
+        self.assertContains(self.client.get(reverse("dashboard")), "6 Oct 2026")
+
+    def test_each_edit_link_names_its_exchange(self):
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertRegex(body, r"Edit<span class=\"sr-only\">[^<]*100\.00")
+
+    def test_delete_confirmation_names_the_object(self):
+        body = self.client.get(reverse("exchange-delete", args=[self.e.pk])).content.decode()
+        self.assertIn("Delete this exchange?", body)
+        self.assertIn(">Delete exchange<", body)
+
+
+class HardeningTests(SignedIn, TestCase):
+    def setUp(self):
+        make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
+        make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
+
+    def _record(self, **data):
+        base = {"spent_currency": "BYN", "received_currency": "EUR"}
+        return self.client.post(reverse("exchange-create"), {**base, **data})
+
+    def test_a_decimal_comma_is_accepted(self):
+        # A Russian-region keypad types 28,84, not 28.84.
+        self._record(spent_amount="100", received_amount="31,07")
+        self.assertTrue(Exchange.objects.filter(received_amount=Decimal("31.07")).exists())
+
+    def test_the_compare_amount_accepts_a_comma_too(self):
+        r = self.client.get(reverse("dashboard"), {"base": "BYN", "target": "HUF", "amount": "100,5"})
+        self.assertEqual(r.context["query"]["amount"], Decimal("100.5"))
+
+    def test_field_errors_are_the_element_the_input_points_at(self):
+        body = self._record(spent_amount="", received_amount="1").content.decode()
+        self.assertIn('aria-describedby="id_spent_amount_error"', body)
+        self.assertIn('id="id_spent_amount_error"', body)
+
+    def test_a_new_record_does_not_default_to_a_transfer(self):
+        form = self.client.get(reverse("exchange-create")).context["form"]
+        self.assertNotEqual(form["spent_currency"].value(), form["received_currency"].value())
+
+    def test_a_rejected_query_keeps_what_was_typed(self):
+        r = self.client.get(reverse("dashboard"), {"base": "EUR", "target": "EUR", "amount": "250"})
+        body = r.content.decode()
+        self.assertIn('value="250"', body)
+        self.assertIn("mode=get&amp;base=EUR&amp;target=EUR&amp;amount=250", body)
+
+
+@override_settings(LANGUAGE_CODE="ru")
+class NumberStyleTests(SignedIn, TestCase):
+    def setUp(self):
+        make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
+        make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
+        make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
+        make("7.34", Currency.USD, 2200, Currency.HUF, "Freedom")
+
+    def test_the_gap_uses_the_same_decimal_point_as_the_money(self):
+        # Amounts are always "1 234.56"; a percentage beside them must not
+        # switch to a comma just because the interface is Russian.
+        body = self.client.get(
+            reverse("dashboard"), {"base": "BYN", "target": "HUF", "amount": "100"}
+        ).content.decode()
+        self.assertRegex(body, r"\+\d+\.\d\d%")
+        self.assertNotRegex(body, r"\+\d+,\d\d%")
+
 
 class StylesheetVersionTests(SignedIn, TestCase):
     def test_the_stylesheet_url_changes_when_the_file_does(self):

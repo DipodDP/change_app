@@ -21,7 +21,7 @@
     {% csrf_token %}
     <input type="hidden" name="confirm" value="1">
     <div class="form-actions">
-      <button type="submit" class="btn btn-danger">{% trans "Yes, clear everything" %}</button>
+      <button type="submit" class="btn btn-danger">{% trans "Delete all exchanges" %}</button>
       <a class="btn btn-quiet" href="{% url 'dashboard' %}">{% trans "Keep my data" %}</a>
     </div>
   </form>

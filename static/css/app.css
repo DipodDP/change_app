@@ -229,6 +229,11 @@
   --surface-hover: #26344c;
   --danger-line: #7f2b2b;
   --danger-wash: #3a1a1a;
+  /* Form-control boundaries must clear 3:1 against what surrounds them
+     (WCAG 1.4.11); the card hairline sits near 1.6:1, so fields get their own
+     line: 3.6:1 on a card, 3.95:1 on the page, brightening on hover. */
+  --line-field: #64779a;
+  --line-field-hover: #8496ab;
 
   --ink: #f8fafc;
   /* #94a3b8 is 6.9:1 on --bg; safe for secondary text */
@@ -247,8 +252,16 @@
   --violet: #4f46e5;
   --violet-deep: #4338ca;
   --violet-hi: #a5b4fc;
+  --violet-hi-hover: #c7d2fe;
+  /* Text on the indigo accent. */
+  --on-accent: #fff;
   --green: #34d399;
   --red: #f87171;
+  /* Text-weight red on a red wash, the way --amber-soft is for amber: the
+     base red falls to 4.33:1 on its own tinted tag; this holds 6.31:1. */
+  --red-soft: #fca5a5;
+  --success-line: #1d6a52;
+  --success-ink: #a7f3d0;
 
   /* Spacing scale. A 4-unit base: the steps are far enough apart that a
      reader can feel which gap is larger, which is what makes proximity carry
@@ -291,7 +304,7 @@ body {
 h1, h2, h3 { line-height: 1.25; margin: 0; font-weight: 600; }
 
 a { color: var(--violet-hi); }
-a:hover { color: #c4b5fd; }
+a:hover { color: var(--violet-hi-hover); }
 
 input, select, button, textarea { font: inherit; color: inherit; }
 
@@ -320,7 +333,7 @@ html {
   border: 3px solid var(--bg-deep);
   border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover { background: #4a5f80; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-field); }
 
 .sr-only {
   position: absolute;
@@ -337,13 +350,11 @@ html {
 /* Stack spacing. Vertical rhythm between siblings was being set inline on a
    dozen elements; these name the same steps once. */
 .mt-0 { margin-top: 0; }
-.mt-1 { margin-top: 6px; }
-.mt-2 { margin-top: 8px; }
-.mt-3 { margin-top: 14px; }
-.mt-4 { margin-top: 16px; }
-.mt-5 { margin-top: var(--s-5); }
+.mt-2 { margin-top: var(--s-2); }
+.mt-3 { margin-top: var(--s-3); }
+.mt-4 { margin-top: var(--s-4); }
 
-.rate-line.mt-1, .rate-line.mt-2 { margin-bottom: 0; }
+.rate-line.mt-2 { margin-bottom: 0; }
 
 /* Pushes a destructive action to the far end of the action row. */
 .push-end { margin-left: auto; }
@@ -378,11 +389,14 @@ html {
   padding: 14px max(20px, env(safe-area-inset-right)) 14px max(20px, env(safe-area-inset-left));
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: var(--s-2);
 }
 
 .brand {
+  /* The wordmark holds the left edge and the account controls gather on the
+     right; spreading four items evenly made "Clear all" float mid-bar, owned
+     by neither side. */
+  margin-right: auto;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -398,7 +412,7 @@ html {
 .lang button {
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 6px 10px;
   min-height: 36px;
   color: var(--ink-dim);
@@ -462,7 +476,14 @@ html {
 /* "The comparison is the product": the answer's heading outranks the evidence's
    rather than speaking in the same dim voice. Placed after the base rule
    because it overrides the same properties at equal specificity. */
-.card-result > .card-head h2 { color: var(--ink); font-size: 18px; }
+.card-result > .card-head h2 {
+  color: var(--ink);
+  font-size: 18px;
+  /* This heading carries data — an amount and two currency symbols — and
+     uppercase mangles symbols that are lowercase by spelling: Ft, zł, Kč. */
+  text-transform: none;
+  letter-spacing: 0;
+}
 
 .hint { color: var(--ink-dim); font-size: 14px; }
 
@@ -501,15 +522,17 @@ html {
 
 .input, .select {
   background: var(--bg-deep);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-field);
   border-radius: var(--r-sm);
   padding-left: 12px;
   padding-right: 12px;
   width: 100%;
   transition: border-color 180ms ease;
 }
-.input:hover, .select:hover { border-color: var(--line-hover); }
-.input { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.input:hover, .select:hover { border-color: var(--line-field-hover); }
+/* Mono is for figures. A bank name or a password is language, so only the
+   fields that hold an amount (.num) or a date take the numeric face. */
+.input.num, .input[type="date"] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .select { cursor: pointer; }
 
 .swap {
@@ -540,8 +563,8 @@ html {
   transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
-.btn-primary { background: var(--violet); color: #fff; }
-.btn-primary:hover { background: var(--violet-deep); color: #fff; }
+.btn-primary { background: var(--violet); color: var(--on-accent); }
+.btn-primary:hover { background: var(--violet-deep); color: var(--on-accent); }
 
 .btn-ghost { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
 .btn-ghost:hover { background: var(--surface-hover); color: var(--ink); }
@@ -614,7 +637,7 @@ html {
   letter-spacing: .02em;
 }
 .tag-best { background: rgba(245, 158, 11, .16); color: var(--amber-soft); }
-.tag-cost { background: rgba(248, 113, 113, .14); color: var(--red); }
+.tag-cost { background: rgba(248, 113, 113, .14); color: var(--red-soft); }
 
 .payout { text-align: right; }
 
@@ -685,17 +708,20 @@ html {
   border-radius: var(--r-sm);
   background: rgba(148, 163, 184, .08);
   color: var(--ink-dim);
-  flex: none;
+  /* Shrinks only when a bank name is longer than the row; ordinary names
+     never reach this, and a long one wraps instead of pushing the card wide. */
+  flex: 0 1 auto;
+  min-width: 0;
 }
+/* A bank name is a proper noun the user typed, not a label: it keeps its own
+   spelling (SuperRich, not SUPERRICH) and takes weight instead of capitals. */
 .hop-via {
   font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  line-height: 1;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
   color: var(--ink-dim);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* The chip is a third layer, and on the winning route it stacks on the amber
@@ -738,13 +764,16 @@ html {
 
 /* ---------- ledger table ---------- */
 
-.table-scroll { margin: 0 calc(-1 * var(--s-5)); padding: 0 var(--s-5); }
+.table-scroll { margin: 0 calc(-1 * var(--s-5)); padding: 0 var(--s-5); overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; }
 
+/* 8px a side still leaves 16px between columns, and it is what lets the
+   Russian ledger — "Изменить" alone is 35px wider than "Edit" — fit the
+   card at full width instead of scrolling sideways by a few pixels. */
 th, td {
   text-align: left;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-2);
   border-bottom: 1px solid var(--line-soft);
 }
 th {
@@ -764,6 +793,7 @@ tr.is-stale td { color: var(--ink-dim); }
 .stale-note { display: block; font-size: 12px; font-family: var(--sans); }
 
 td.right, th.right { text-align: right; }
+td.num { white-space: nowrap; }
 .cell-actions { display: flex; gap: 6px; justify-content: flex-end; }
 
 /* ---------- empty & messages ---------- */
@@ -777,7 +807,7 @@ td.right, th.right { text-align: right; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: var(--s-3);
 }
 .empty h2 { color: var(--ink); font-size: 18px; }
 .empty p { margin: 0; max-width: 46ch; }
@@ -789,10 +819,7 @@ td.right, th.right { text-align: right; }
   border: 1px solid;
   font-size: 15px;
 }
-.msg-success { background: rgba(52, 211, 153, .1); border-color: #1d6a52; color: #a7f3d0; }
-.msg-error { background: rgba(248, 113, 113, .1); border-color: var(--danger-line); color: #fecaca; }
-/* A consequence the user did not ask for: visible, but not an error. */
-.msg-warning { background: rgba(251, 191, 36, .1); border-color: #92700e; color: #fde68a; }
+.msg-success { background: rgba(52, 211, 153, .1); border-color: var(--success-line); color: var(--success-ink); }
 
 .errorlist {
   list-style: none;
@@ -808,9 +835,11 @@ td.right, th.right { text-align: right; }
 .helptext { font-size: 13px; color: var(--ink-dim); }
 
 @media (max-width: 720px) {
-  .query { grid-template-columns: 1fr 1fr; }
-  .query .swap { display: none; }
-  .query .field-submit { grid-column: 1 / -1; }
+  /* How much on its own row, then the direction as one line — From → To —
+     so the pair still reads as a conversion instead of two loose selects. */
+  .query { grid-template-columns: 1fr auto 1fr; }
+  .query > .field:first-of-type, .query .field-submit { grid-column: 1 / -1; }
+  .query .swap-gap { display: none; }
   .form-grid { grid-template-columns: 1fr; }
   .payout { text-align: left; }
   .wrap {
@@ -825,7 +854,6 @@ td.right, th.right { text-align: right; }
   /* Four controls do not fit a phone header. The brand and the language
      switch are navigation; the account actions are not, so they shed their
      labels rather than push the row into a scroll. */
-  .topbar .brand { margin-right: auto; }
   .topbar .who { display: none; }
 }
 
@@ -845,18 +873,24 @@ td.right, th.right { text-align: right; }
   tbody tr:hover { background: none; }
 }
 
-/* ---------- ledger as cards ----------
-   Below this width the table stops being a grid worth scanning across: five
-   columns cannot hold their meaning at 390px, and scrolling a table sideways
-   inside a card hides the actions at the edge. Each row is one exchange, which
-   is a card — the header cell travels with the value as its label. */
 @media (max-width: 640px) {
   /* Horizontal room is scarce on a phone, so the card tightens sideways while
      the vertical rhythm between sections stays intact — the ratio that does
      the grouping is vertical, and spending width on it buys nothing. */
   .card { padding: var(--s-4); }
   .card + .card { margin-top: var(--s-6); }
+}
 
+/* ---------- ledger as cards ----------
+   The six columns need about 770px to hold every figure on one line. Below
+   that the table stops being a grid worth scanning across — values wrap mid-
+   figure and the actions slide off the edge — so each row becomes the card it
+   already is, the header cell travelling with the value as its label. The
+   switch follows the ledger's own width, not the viewport's, because that is
+   what the columns actually have to fit in. */
+.card-ledger { container-type: inline-size; }
+
+@container (max-width: 760px) {
   .table-scroll { margin: 0; padding: 0; }
 
   table, tbody, tr, td { display: block; width: 100%; }
@@ -901,6 +935,11 @@ td.right, th.right { text-align: right; }
 
   td[data-label] { text-align: right; }
 
+  /* The value keeps its place on the label's line; the "older rate" note
+     drops beneath it rather than splitting the row in three. */
+  td:has(.stale-note) { flex-wrap: wrap; row-gap: 0; }
+  td:has(.stale-note) .stale-note { flex-basis: 100%; text-align: right; }
+
   /* Actions earn a full row: it is the one target a thumb must not miss. */
   td.cell-actions-wrap { padding-top: 11px; }
   td.cell-actions-wrap::before { content: none; }
@@ -943,9 +982,9 @@ td.right, th.right { text-align: right; }
 .pill[aria-current="true"] {
   background: var(--violet);
   border-color: var(--violet);
-  color: #fff;
+  color: var(--on-accent);
 }
-.pill[aria-current="true"]:hover { background: var(--violet-deep); color: #fff; }
+.pill[aria-current="true"]:hover { background: var(--violet-deep); color: var(--on-accent); }
 
 /* ---------- grouped routes ---------- */
 
@@ -967,7 +1006,7 @@ td.right, th.right { text-align: right; }
 
 .branch { display: flex; gap: 12px; }
 .spine { width: 20px; flex: none; display: flex; justify-content: center; }
-.spine i { width: 2px; background: var(--line); display: block; border-radius: 1px; }
+.spine i { width: 2px; background: var(--line); display: block; border-radius: 999px; }
 .branch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 
 /* ---------- suggestion chips ---------- */
@@ -1000,7 +1039,7 @@ td.right, th.right { text-align: right; }
   border-left: 5px solid currentColor;
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
-  transition: transform .15s ease;
+  transition: transform 180ms ease;
 }
 .disclose[open] > summary::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {

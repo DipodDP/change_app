@@ -1,6 +1,6 @@
 [project]
 name = "change"
-version = "0.7.0"
+version = "0.8.0"
 description = "Find the cheapest currency conversion route through exchanges you have actually made"
 requires-python = ">=3.11"
 dependencies = [
