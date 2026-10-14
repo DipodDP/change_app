@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .forms import ExchangeForm
-from .models import Currency, Exchange, Route, RouteStep
+from .models import Currency, Exchange
 from .routing import (
     Leg,
     Option,
@@ -59,7 +59,6 @@ class SignedIn:
         # setUp() runs first, then everything ownerless becomes this user's.
         super()._callSetUp()
         Exchange.objects.filter(owner__isnull=True).update(owner=self.user)
-        Route.objects.filter(owner__isnull=True).update(owner=self.user)
 
 
 class RateTests(TestCase):
@@ -184,28 +183,6 @@ class CompareTests(TestCase):
         self.assertEqual(results[1].shortfall.quantize(Decimal("1")), Decimal("316"))
 
 
-class SavedRouteTests(TestCase):
-    def test_route_reports_its_chain_rate(self):
-        a = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        b = make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
-        route = Route.objects.create(name="Prior")
-        RouteStep.objects.create(route=route, exchange=a, position=0)
-        RouteStep.objects.create(route=route, exchange=b, position=1)
-
-        self.assertEqual(
-            chain_rate(route.ordered_steps()).quantize(Decimal("0.01")),
-            Decimal("102.85"),
-        )
-
-    def test_steps_come_back_in_position_order(self):
-        a = make(100, Currency.BYN, "28.84", Currency.EUR)
-        b = make("14.02", Currency.EUR, 5000, Currency.HUF)
-        route = Route.objects.create(name="ordered")
-        RouteStep.objects.create(route=route, exchange=b, position=1)
-        RouteStep.objects.create(route=route, exchange=a, position=0)
-        self.assertEqual(route.ordered_steps(), [a, b])
-
-
 class ViewTests(SignedIn, TestCase):
     def setUp(self):
         # Each chain stays at one bank: funds cannot hop between providers.
@@ -322,7 +299,7 @@ class MoneyRoundingTests(TestCase):
 
 
 class OwnershipTests(TestCase):
-    """Exchanges and routes belong to a user."""
+    """Exchanges belong to a user."""
 
     def setUp(self):
         from django.contrib.auth.models import User
@@ -366,11 +343,6 @@ class OwnershipTests(TestCase):
         self.user.delete()
         e.refresh_from_db()
         self.assertIsNone(e.owner)
-
-    def test_route_can_be_owned(self):
-        route = Route.objects.create(name="mine", owner=self.user)
-        self.assertEqual(route.owner, self.user)
-
 
 class ModeTests(TestCase):
     """The wireframe's «хочу получить» / «отправляю» toggle.
@@ -473,7 +445,7 @@ class GroupingTests(TestCase):
 
 
 class SuggestionTests(TestCase):
-    """Bank and route-name suggestions built from what is already stored."""
+    """Bank suggestions built from what is already stored."""
 
     def setUp(self):
         make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
@@ -519,98 +491,6 @@ class SuggestionTests(TestCase):
         picks = bank_suggestions(Exchange.objects.all())
         self.assertNotIn("", [p.name for p in picks])
 
-    def test_route_names_proposed_from_step_banks(self):
-        from .suggestions import route_name_suggestions
-
-        steps = list(Exchange.objects.filter(provider__in=["Prior", "OTP"])[:2])
-        names = route_name_suggestions(steps)
-        self.assertTrue(any("–" in n for n in names))
-
-    def test_route_name_suggestions_skip_taken_names(self):
-        from .suggestions import route_name_suggestions
-
-        steps = list(Exchange.objects.filter(provider="Prior")[:1])
-        names = route_name_suggestions(steps, taken=["Prior"])
-        self.assertNotIn("Prior", names)
-
-
-class UsageCountTests(TestCase):
-    def test_exchange_reports_how_many_routes_use_it(self):
-        a = make(100, Currency.BYN, "28.84", Currency.EUR)
-        b = make("14.02", Currency.EUR, 5000, Currency.HUF)
-        r1 = Route.objects.create(name="one")
-        RouteStep.objects.create(route=r1, exchange=a, position=0)
-        RouteStep.objects.create(route=r1, exchange=b, position=1)
-        r2 = Route.objects.create(name="two")
-        RouteStep.objects.create(route=r2, exchange=a, position=0)
-
-        self.assertEqual(a.routes.count(), 2)
-        self.assertEqual(b.routes.count(), 1)
-
-
-class AffectedRoutesTests(TestCase):
-    """Editing an exchange previews which saved routes it changes."""
-
-    def test_lists_routes_containing_the_exchange(self):
-        from .suggestions import affected_routes
-
-        a = make(100, Currency.BYN, "28.84", Currency.EUR)
-        b = make("14.02", Currency.EUR, 5000, Currency.HUF)
-        r = Route.objects.create(name="Prior–OTP")
-        RouteStep.objects.create(route=r, exchange=a, position=0)
-        RouteStep.objects.create(route=r, exchange=b, position=1)
-
-        found = affected_routes(a)
-        self.assertEqual([x["route"].pk for x in found], [r.pk])
-
-    def test_reports_the_through_rate(self):
-        from .suggestions import affected_routes
-
-        a = make(100, Currency.BYN, "28.84", Currency.EUR)
-        b = make("14.02", Currency.EUR, 5000, Currency.HUF)
-        r = Route.objects.create(name="Prior–OTP")
-        RouteStep.objects.create(route=r, exchange=a, position=0)
-        RouteStep.objects.create(route=r, exchange=b, position=1)
-
-        found = affected_routes(a)
-        self.assertEqual(found[0]["rate"].quantize(Decimal("0.01")), Decimal("102.85"))
-
-    def test_unused_exchange_affects_nothing(self):
-        from .suggestions import affected_routes
-
-        a = make(100, Currency.BYN, "28.84", Currency.EUR)
-        self.assertEqual(affected_routes(a), [])
-
-
-class RouteBuilderTests(TestCase):
-    """Candidate steps split into those that fit the chain and those that do not."""
-
-    def setUp(self):
-        self.byn_eur = make(100, Currency.BYN, "28.84", Currency.EUR)
-        self.eur_huf = make("14.02", Currency.EUR, 5000, Currency.HUF)
-        self.usd_huf = make("7.34", Currency.USD, 2200, Currency.HUF)
-
-    def test_empty_chain_everything_fits(self):
-        from .suggestions import split_candidates
-
-        fits, unfits = split_candidates(Exchange.objects.all(), [])
-        self.assertEqual(len(fits), 3)
-        self.assertEqual(unfits, [])
-
-    def test_only_matching_currency_fits(self):
-        from .suggestions import split_candidates
-
-        fits, unfits = split_candidates(Exchange.objects.all(), [self.byn_eur])
-        self.assertIn(self.eur_huf, fits)
-        self.assertIn(self.usd_huf, unfits)
-
-    def test_chosen_steps_are_not_offered_again(self):
-        from .suggestions import split_candidates
-
-        fits, unfits = split_candidates(Exchange.objects.all(), [self.byn_eur])
-        self.assertNotIn(self.byn_eur, fits + unfits)
-
-
 class NewFeatureViewTests(SignedIn, TestCase):
     def setUp(self):
         # The opening leg is unattributed so both continuations can use it;
@@ -642,47 +522,9 @@ class NewFeatureViewTests(SignedIn, TestCase):
         self.assertEqual(len(groups), 1)
         self.assertTrue(groups[0].shared)
 
-    def test_usage_counts_present(self):
-        r = self.client.get(reverse("dashboard"))
-        self.assertTrue(all("used" in row for row in r.context["rows"]))
-
     def test_exchange_form_offers_bank_picks(self):
         r = self.client.get(reverse("exchange-create"))
         self.assertTrue(r.context["bank_picks"])
-
-    def test_edit_form_shows_affected_routes(self):
-        route = Route.objects.create(name="Prior–OTP")
-        RouteStep.objects.create(route=route, exchange=self.byn_eur, position=0)
-        RouteStep.objects.create(route=route, exchange=self.eur_huf, position=1)
-        r = self.client.get(reverse("exchange-edit", args=[self.byn_eur.pk]))
-        self.assertEqual(len(r.context["affected"]), 1)
-
-    def test_route_builder_splits_candidates(self):
-        r = self.client.get(reverse("route-create"), {"step_ids": str(self.byn_eur.pk)})
-        self.assertIn(self.eur_huf, r.context["fitting"])
-        self.assertIn(self.rub_byn, r.context["not_fitting"])
-
-    def test_route_builder_shows_the_derived_name(self):
-        # The name is no longer typed: it is derived from the steps' banks.
-        r = self.client.get(reverse("route-create"), {"step_ids": str(self.byn_eur.pk)})
-        self.assertEqual(r.context["derived_name"], "Prior")
-
-    def test_saving_route_preserves_click_order(self):
-        r = self.client.post(
-            reverse("route-create"),
-            {"name": "Prior–OTP", "step_ids": f"{self.byn_eur.pk},{self.eur_huf.pk}"},
-        )
-        self.assertRedirects(r, reverse("dashboard"))
-        route = Route.objects.get()
-        self.assertEqual(route.ordered_steps(), [self.byn_eur, self.eur_huf])
-
-    def test_disconnected_route_is_rejected(self):
-        r = self.client.post(
-            reverse("route-create"),
-            {"name": "bad", "step_ids": f"{self.byn_eur.pk},{self.rub_byn.pk}"},
-        )
-        self.assertEqual(r.status_code, 200)
-        self.assertFalse(Route.objects.filter(name="bad").exists())
 
     def test_reset_clears_then_reloads(self):
         # Wiping is confirmed; reloading the example is not.
@@ -732,231 +574,6 @@ class EditFormSuggestionTests(SignedIn, TestCase):
              "received_amount": "", "received_currency": "EUR", "provider": "fre"},
         )
         self.assertEqual([p.name for p in r.context["bank_picks"]], ["Freedom"])
-
-
-class RouteNameSyncTests(SignedIn, TestCase):
-    """Route names are regenerated from the banks on their steps.
-
-    A name like "Белинвест–Freedom–Wise" is wrong the moment those steps stop
-    using those banks, so the name follows the data.
-    """
-
-    def setUp(self):
-        self.a = make(60000, Currency.RUB, "2140.43", Currency.BYN, "Белинвест")
-        self.b = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.c = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
-        self.route = Route.objects.create(name="Белинвест–Prior–OTP")
-        for i, e in enumerate([self.a, self.b, self.c]):
-            RouteStep.objects.create(route=self.route, exchange=e, position=i)
-
-    def test_name_from_steps(self):
-        from .suggestions import name_from_steps
-
-        self.assertEqual(
-            name_from_steps(self.route.ordered_steps()), "Белинвест–Prior–OTP"
-        )
-
-    def test_renames_when_a_provider_changes(self):
-        from .suggestions import sync_route_names
-
-        self.c.provider = "Wise"
-        self.c.save()
-        sync_route_names(self.c)
-        self.route.refresh_from_db()
-        self.assertEqual(self.route.name, "Белинвест–Prior–Wise")
-
-    def test_collapses_repeated_banks(self):
-        from .suggestions import name_from_steps
-
-        for e in (self.a, self.b, self.c):
-            e.provider = "Prior"
-            e.save()
-        self.assertEqual(name_from_steps(self.route.ordered_steps()), "Prior")
-
-    def test_unnamed_steps_fall_back_to_currencies(self):
-        from .suggestions import name_from_steps
-
-        for e in (self.a, self.b, self.c):
-            e.provider = ""
-            e.save()
-        self.assertEqual(
-            name_from_steps(self.route.ordered_steps()), "RUB → BYN → EUR → HUF"
-        )
-
-    def test_every_route_name_reflects_its_own_steps(self):
-        from .suggestions import sync_route_names
-
-        # Sync considers all routes, so collisions are judged on current names
-        # rather than stale ones; each route is named for the steps it holds.
-        other = Route.objects.create(name="Untouched")
-        RouteStep.objects.create(route=other, exchange=self.a, position=0)
-        self.b.provider = "Freedom"
-        self.b.save()
-        sync_route_names(self.b)
-
-        other.refresh_from_db()
-        self.route.refresh_from_db()
-        self.assertEqual(other.name, "Белинвест")
-        self.assertEqual(self.route.name, "Белинвест–Freedom–OTP")
-
-    def test_editing_provider_through_the_view_renames(self):
-        r = self.client.post(
-            reverse("exchange-edit", args=[self.c.pk]),
-            {
-                "spent_amount": "14.02",
-                "spent_currency": Currency.EUR,
-                "received_amount": "5000",
-                "received_currency": Currency.HUF,
-                "provider": "Wise",
-            },
-        )
-        self.assertRedirects(r, reverse("dashboard"))
-        self.route.refresh_from_db()
-        self.assertEqual(self.route.name, "Белинвест–Prior–Wise")
-
-
-class NameDisambiguationTests(TestCase):
-    """Two chains through the same banks still need distinguishable names."""
-
-    def test_identical_bank_chains_get_currency_suffix(self):
-        from .suggestions import name_from_steps
-
-        a = make(60000, Currency.RUB, "2140.43", Currency.BYN, "Bank")
-        b = make(100, Currency.BYN, "28.84", Currency.EUR, "Bank")
-        c = make("14.02", Currency.EUR, 5000, Currency.HUF, "Bank")
-        r = Route.objects.create(name="x")
-        for i, e in enumerate([a, b, c]):
-            RouteStep.objects.create(route=r, exchange=e, position=i)
-
-        plain = name_from_steps(r.ordered_steps())
-        detailed = name_from_steps(r.ordered_steps(), disambiguate=True)
-        self.assertEqual(plain, "Bank")
-        self.assertIn("EUR", detailed)
-        self.assertIn("Bank", detailed)
-
-
-class NameCollisionRegressionTests(TestCase):
-    """Renaming one route must account for what its siblings are called now.
-
-    Regression: sync only looked at routes containing the edited exchange, so
-    it compared against a stale sibling name and left one route suffixed and
-    the other not.
-    """
-
-    def setUp(self):
-        self.hub = make(60000, Currency.RUB, "2140.43", Currency.BYN, "Hub")
-        self.eur = make(100, Currency.BYN, "28.84", Currency.EUR, "Bank")
-        self.eur_huf = make("14.02", Currency.EUR, 5000, Currency.HUF, "Bank")
-        self.usd = make(100, Currency.BYN, "33.26", Currency.USD, "Bank")
-        self.usd_huf = make("7.34", Currency.USD, 2200, Currency.HUF, "Other")
-
-        self.r_eur = Route.objects.create(name="A")
-        for i, e in enumerate([self.hub, self.eur, self.eur_huf]):
-            RouteStep.objects.create(route=self.r_eur, exchange=e, position=i)
-        self.r_usd = Route.objects.create(name="B")
-        for i, e in enumerate([self.hub, self.usd, self.usd_huf]):
-            RouteStep.objects.create(route=self.r_usd, exchange=e, position=i)
-
-    def test_both_routes_are_suffixed_when_they_collide(self):
-        from .suggestions import sync_route_names
-
-        # Make the USD tail match the EUR one, creating a collision.
-        self.usd_huf.provider = "Bank"
-        self.usd_huf.save()
-        sync_route_names(self.usd_huf)
-
-        self.r_eur.refresh_from_db()
-        self.r_usd.refresh_from_db()
-        self.assertNotEqual(self.r_eur.name, self.r_usd.name)
-        # Neither should be a bare name while the other carries a suffix.
-        self.assertIn("(", self.r_eur.name)
-        self.assertIn("(", self.r_usd.name)
-
-    def test_suffix_drops_when_collision_is_resolved(self):
-        from .suggestions import sync_route_names
-
-        self.usd_huf.provider = "Bank"
-        self.usd_huf.save()
-        sync_route_names(self.usd_huf)
-
-        self.usd_huf.provider = "Other"
-        self.usd_huf.save()
-        sync_route_names(self.usd_huf)
-
-        self.r_eur.refresh_from_db()
-        self.r_usd.refresh_from_db()
-        self.assertNotIn("(", self.r_eur.name)
-        self.assertNotIn("(", self.r_usd.name)
-
-
-class RouteEditTests(SignedIn, TestCase):
-    """Saved routes can have their steps changed after creation."""
-
-    def setUp(self):
-        self.hub = make(60000, Currency.RUB, "2140.43", Currency.BYN, "Hub")
-        self.eur = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.eur_huf = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
-        self.usd = make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
-        self.usd_huf = make("7.34", Currency.USD, 2200, Currency.HUF, "Wise")
-
-        self.route = Route.objects.create(name="Hub–Prior–OTP")
-        for i, e in enumerate([self.hub, self.eur, self.eur_huf]):
-            RouteStep.objects.create(route=self.route, exchange=e, position=i)
-
-    def test_edit_page_renders_with_current_steps(self):
-        r = self.client.get(reverse("route-edit", args=[self.route.pk]))
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.context["chosen"], [self.hub, self.eur, self.eur_huf])
-
-    def test_edit_page_offers_only_connecting_candidates(self):
-        r = self.client.get(reverse("route-edit", args=[self.route.pk]))
-        # Chain ends in HUF; nothing here starts from HUF.
-        self.assertEqual(r.context["fitting"], [])
-        self.assertIn(self.usd, r.context["not_fitting"])
-
-    def test_saving_replaces_the_steps(self):
-        r = self.client.post(
-            reverse("route-edit", args=[self.route.pk]),
-            {"step_ids": f"{self.hub.pk},{self.usd.pk},{self.usd_huf.pk}"},
-        )
-        self.assertRedirects(r, reverse("dashboard"))
-        self.route.refresh_from_db()
-        self.assertEqual(
-            self.route.ordered_steps(), [self.hub, self.usd, self.usd_huf]
-        )
-
-    def test_name_follows_the_new_steps(self):
-        self.client.post(
-            reverse("route-edit", args=[self.route.pk]),
-            {"step_ids": f"{self.hub.pk},{self.usd.pk},{self.usd_huf.pk}"},
-        )
-        self.route.refresh_from_db()
-        self.assertEqual(self.route.name, "Hub–Freedom–Wise")
-
-    def test_no_duplicate_steps_left_behind(self):
-        self.client.post(
-            reverse("route-edit", args=[self.route.pk]),
-            {"step_ids": f"{self.hub.pk},{self.usd.pk}"},
-        )
-        self.assertEqual(self.route.route_steps.count(), 2)
-
-    def test_disconnected_edit_is_rejected(self):
-        r = self.client.post(
-            reverse("route-edit", args=[self.route.pk]),
-            {"step_ids": f"{self.eur.pk},{self.hub.pk}"},
-        )
-        self.assertEqual(r.status_code, 200)
-        self.route.refresh_from_db()
-        # Original steps survive a rejected edit.
-        self.assertEqual(len(self.route.ordered_steps()), 3)
-
-    def test_editing_a_missing_route_is_404(self):
-        r = self.client.get(reverse("route-edit", args=[9999]))
-        self.assertEqual(r.status_code, 404)
-
-    def test_dashboard_links_to_the_editor(self):
-        r = self.client.get(reverse("dashboard"))
-        self.assertContains(r, reverse("route-edit", args=[self.route.pk]))
 
 
 class RatePrecisionTests(TestCase):
@@ -1014,43 +631,9 @@ class GroupShapeTests(TestCase):
         self.assertIsNone(groups[0].shared_step)
 
 
-class ExchangeDeleteTests(SignedIn, TestCase):
-    """Deleting a step must leave every route it touched coherent."""
-
+class ExchangeEditTests(SignedIn, TestCase):
     def setUp(self):
         self.a = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.b = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
-        self.route = Route.objects.create(name="Prior–OTP")
-        RouteStep.objects.create(route=self.route, exchange=self.a, position=0)
-        RouteStep.objects.create(route=self.route, exchange=self.b, position=1)
-
-    def test_positions_are_resequenced(self):
-        self.client.post(reverse("exchange-delete", args=[self.a.pk]))
-        positions = list(
-            self.route.route_steps.order_by("position").values_list("position", flat=True)
-        )
-        self.assertEqual(positions, [0])
-
-    def test_route_name_is_resynced(self):
-        self.client.post(reverse("exchange-delete", args=[self.a.pk]))
-        self.route.refresh_from_db()
-        self.assertEqual(self.route.name, "OTP")
-
-    def test_route_left_with_no_steps_is_removed(self):
-        self.client.post(reverse("exchange-delete", args=[self.a.pk]))
-        self.client.post(reverse("exchange-delete", args=[self.b.pk]))
-        self.assertFalse(Route.objects.filter(pk=self.route.pk).exists())
-
-
-class EditBreakingRoutesTests(SignedIn, TestCase):
-    """Changing a currency must not silently strand a saved route."""
-
-    def setUp(self):
-        self.a = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.b = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
-        self.route = Route.objects.create(name="Prior–OTP")
-        RouteStep.objects.create(route=self.route, exchange=self.a, position=0)
-        RouteStep.objects.create(route=self.route, exchange=self.b, position=1)
 
     def _post(self, **overrides):
         data = {
@@ -1063,17 +646,7 @@ class EditBreakingRoutesTests(SignedIn, TestCase):
         data.update(overrides)
         return self.client.post(reverse("exchange-edit", args=[self.a.pk]), data)
 
-    def test_breaking_edit_is_rejected(self):
-        response = self._post(received_currency=Currency.USD)
-        self.assertEqual(response.status_code, 200)
-        self.a.refresh_from_db()
-        self.assertEqual(self.a.received_currency, Currency.EUR)
-
-    def test_breaking_edit_names_the_route(self):
-        response = self._post(received_currency=Currency.USD)
-        self.assertContains(response, "Prior–OTP")
-
-    def test_harmless_edit_still_saves(self):
+    def test_edit_saves(self):
         response = self._post(received_amount="30.00")
         self.assertEqual(response.status_code, 302)
         self.a.refresh_from_db()
@@ -1085,8 +658,6 @@ class AuthRequiredTests(TestCase):
 
     def setUp(self):
         self.exchange = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.route = Route.objects.create(name="Prior")
-        RouteStep.objects.create(route=self.route, exchange=self.exchange, position=0)
 
     def test_all_views_redirect_anonymous(self):
         urls = [
@@ -1094,9 +665,6 @@ class AuthRequiredTests(TestCase):
             reverse("exchange-create"),
             reverse("exchange-edit", args=[self.exchange.pk]),
             reverse("exchange-delete", args=[self.exchange.pk]),
-            reverse("route-create"),
-            reverse("route-edit", args=[self.route.pk]),
-            reverse("route-delete", args=[self.route.pk]),
             reverse("reset-data"),
         ]
         for url in urls:
@@ -1122,8 +690,6 @@ class OwnerScopingTests(TestCase):
         self.hers = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
         self.hers.owner = self.alice
         self.hers.save()
-        self.her_route = Route.objects.create(name="Prior", owner=self.alice)
-        RouteStep.objects.create(route=self.her_route, exchange=self.hers, position=0)
 
         self.client.force_login(self.bob)
 
@@ -1140,22 +706,6 @@ class OwnerScopingTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Exchange.objects.filter(pk=self.hers.pk).exists())
 
-    def test_cannot_delete_another_users_route(self):
-        response = self.client.post(reverse("route-delete", args=[self.her_route.pk]))
-        self.assertEqual(response.status_code, 404)
-        self.assertTrue(Route.objects.filter(pk=self.her_route.pk).exists())
-
-    def test_cannot_edit_another_users_route(self):
-        response = self.client.get(reverse("route-edit", args=[self.her_route.pk]))
-        self.assertEqual(response.status_code, 404)
-
-    def test_cannot_build_a_route_from_another_users_steps(self):
-        response = self.client.post(
-            reverse("route-create"), {"step_ids": str(self.hers.pk)}
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(Route.objects.filter(owner=self.bob).exists())
-
     def test_reset_only_clears_own_data(self):
         mine = make(100, Currency.BYN, "33.26", Currency.USD, "Freedom")
         mine.owner = self.bob
@@ -1163,30 +713,6 @@ class OwnerScopingTests(TestCase):
         self.client.post(reverse("reset-data"), {"confirm": "1"})
         self.assertTrue(Exchange.objects.filter(pk=self.hers.pk).exists())
         self.assertFalse(Exchange.objects.filter(pk=mine.pk).exists())
-
-
-class NameLastResortTests(TestCase):
-    """Same banks and same currency path still need distinguishable names."""
-
-    def test_identical_shape_routes_get_distinct_names(self):
-        from .suggestions import sync_route_names
-
-        a1 = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
-        a2 = make("14.02", Currency.EUR, 5000, Currency.HUF, "OTP")
-        b1 = make(200, Currency.BYN, "57.10", Currency.EUR, "Prior")
-        b2 = make("28.00", Currency.EUR, 9900, Currency.HUF, "OTP")
-
-        first = Route.objects.create(name="x")
-        for i, e in enumerate([a1, a2]):
-            RouteStep.objects.create(route=first, exchange=e, position=i)
-        second = Route.objects.create(name="y")
-        for i, e in enumerate([b1, b2]):
-            RouteStep.objects.create(route=second, exchange=e, position=i)
-
-        sync_route_names()
-        first.refresh_from_db()
-        second.refresh_from_db()
-        self.assertNotEqual(first.name, second.name)
 
 
 class CurrencyCatalogTests(TestCase):
@@ -1406,8 +932,8 @@ class ProviderContinuityTests(TestCase):
         self.assertEqual(len(paths), 1)
 
 
-class SavedRouteContinuityTests(TestCase):
-    """A saved route obeys the same rule the router does.
+class ChainContinuityTests(TestCase):
+    """chain_rate obeys the same rule the router does.
 
     Pricing a chain that best_paths would refuse to build tells the user a
     number for a conversion they cannot perform.
@@ -1444,19 +970,6 @@ class SavedRouteContinuityTests(TestCase):
             make("100", Currency.BYN, "28.84", Currency.EUR, "Prior"),
         ]
         self.assertGreater(chain_rate(steps), 0)
-
-    def test_the_dashboard_marks_such_a_route_broken(self):
-        from .suggestions import affected_routes
-
-        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
-        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
-        route = Route.objects.create(name="mixed")
-        for i, e in enumerate([a, b]):
-            RouteStep.objects.create(route=route, exchange=e, position=i)
-        item = affected_routes(a)[0]
-        self.assertTrue(item["broken"])
-        self.assertIsNone(item["rate"])
-
 
 class TransferTests(TestCase):
     """Moving money between your own accounts, in one currency.
@@ -1765,7 +1278,7 @@ class ResetGuardTests(SignedIn, TestCase):
     """The wipe is the only irreversible path in the app, so it is guarded.
 
     Deleting one exchange already asks for confirmation; deleting every
-    exchange and every route must not ask for less.
+    exchange must not ask for less.
     """
 
     def setUp(self):
@@ -1776,11 +1289,9 @@ class ResetGuardTests(SignedIn, TestCase):
         self.client.post(reverse("reset-data"))
         self.assertTrue(Exchange.objects.filter(pk=self.keep.pk).exists())
 
-    def test_get_shows_a_confirmation_naming_the_counts(self):
-        Route.objects.create(name="BYN → EUR", owner=self.user)
+    def test_get_shows_a_confirmation_naming_the_count(self):
         body = self.client.get(reverse("reset-data")).content.decode()
         self.assertIn("1 exchange", body)
-        self.assertIn("1 saved route", body)
 
     def test_confirmed_post_wipes_only_this_owner(self):
         from django.contrib.auth import get_user_model
@@ -1969,7 +1480,7 @@ class HeadingHierarchyTests(SignedIn, TestCase):
         self.assertLess(body.index("<h1"), body.index("<h2"))
 
     def test_other_pages_have_an_h1_too(self):
-        for name in ("exchange-create", "route-create"):
+        for name in ("exchange-create",):
             body = self.client.get(reverse(name)).content.decode()
             self.assertEqual(body.count("<h1"), 1, f"{name} needs one h1")
 
@@ -1978,22 +1489,19 @@ class HeadingHierarchyTests(SignedIn, TestCase):
 class CopyPluralTests(SignedIn, TestCase):
     """Counted messages must not hardcode the English plural."""
 
-    def test_clearing_one_of_each_reads_singular(self):
-        e = Exchange.objects.create(
+    def test_clearing_one_reads_singular(self):
+        Exchange.objects.create(
             spent_amount=Decimal("100"),
             spent_currency=Currency.BYN,
             received_amount=Decimal("30"),
             received_currency=Currency.USD,
             owner=self.user,
         )
-        route = Route.objects.create(name="R", owner=self.user)
-        RouteStep.objects.create(route=route, exchange=e, position=0)
-
         response = self.client.post(
             reverse("reset-data"), {"confirm": "1"}, follow=True
         )
         body = response.content.decode()
-        self.assertIn("Cleared 1 exchange, and every saved route.", body)
+        self.assertIn("Cleared 1 exchange.", body)
         self.assertNotIn("1 exchanges", body)
 
     def test_clearing_several_reads_plural(self):
@@ -2009,29 +1517,6 @@ class CopyPluralTests(SignedIn, TestCase):
             reverse("reset-data"), {"confirm": "1"}, follow=True
         )
         self.assertIn("2 exchanges", response.content.decode())
-
-
-@override_settings(LANGUAGE_CODE="en")
-class CascadeWarningTests(SignedIn, TestCase):
-    """Losing a saved route is a warning, not a success."""
-
-    def test_route_loss_is_announced_as_a_warning(self):
-        e = Exchange.objects.create(
-            spent_amount=Decimal("100"),
-            spent_currency=Currency.BYN,
-            received_amount=Decimal("30"),
-            received_currency=Currency.USD,
-            owner=self.user,
-        )
-        route = Route.objects.create(name="Solo", owner=self.user)
-        RouteStep.objects.create(route=route, exchange=e, position=0)
-
-        body = self.client.post(
-            reverse("exchange-delete", args=[e.pk]), follow=True
-        ).content.decode()
-        self.assertIn("msg-warning", body)
-        self.assertIn("gone too", body)
-        self.assertNotIn("had no steps left", body)
 
 
 class OptionStepTests(TestCase):
@@ -2205,45 +1690,6 @@ class TransferMarkingTests(SignedIn, TestCase):
         )
         html = r.content.decode()
         self.assertNotIn("is-move", self._chain(html))
-
-
-class SavedRouteChainTests(SignedIn, TestCase):
-    """A saved route's chain is annotated by the same rule as a ranked one.
-
-    Both read Step, so a transfer is marked in both places and a bank already
-    named is not repeated on the next arrow.
-    """
-
-    def setUp(self):
-        a = make("60000", Currency.RUB, "2140.43", Currency.BYN, "Белинвестбанк")
-        t = make(
-            "1000",
-            Currency.BYN,
-            "1000",
-            Currency.BYN,
-            "Белинвестбанк",
-            received_provider="Prior",
-        )
-        b = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior")
-        self.route = Route.objects.create(name="RUB → EUR", owner=self.user)
-        for position, exchange in enumerate([a, t, b]):
-            RouteStep.objects.create(
-                route=self.route, exchange=exchange, position=position
-            )
-
-    def _saved(self, html):
-        i = html.index("RUB → EUR")
-        return html[i : html.index("</article>", i)]
-
-    def test_a_saved_transfer_is_marked(self):
-        block = self._saved(self.client.get(reverse("dashboard")).content.decode())
-        self.assertIn("is-move", block)
-
-    def test_a_saved_chain_does_not_repeat_a_bank(self):
-        # Transfer lands at Prior; the conversion that follows is at Prior too,
-        # so the name belongs on the transfer's arrow and nowhere after it.
-        block = self._saved(self.client.get(reverse("dashboard")).content.decode())
-        self.assertEqual(block.count("Prior"), 1)
 
 
 @override_settings(LANGUAGE_CODE="en")
@@ -2454,3 +1900,20 @@ class MadeOnTests(SignedIn, TestCase):
         Exchange.objects.update(owner=self.user)
         response = self.client.get(reverse("dashboard"))
         self.assertEqual([e.pk for e in response.context["exchanges"]], [recent.pk, old.pk])
+
+
+class NoSavedRoutesTests(SignedIn, TestCase):
+    """Compare finds every chain already; a hand-saved copy only went stale."""
+
+    def test_route_pages_are_gone(self):
+        from django.urls import NoReverseMatch
+
+        for name in ("route-create", "route-edit", "route-delete"):
+            with self.assertRaises(NoReverseMatch):
+                reverse(name, args=[1] if name != "route-create" else [])
+
+    def test_dashboard_offers_no_saved_routes(self):
+        make(100, Currency.BYN, 30, Currency.USD, owner=self.user)
+        response = self.client.get(reverse("dashboard"))
+        self.assertNotContains(response, "/route/")
+        self.assertNotIn("saved_routes", response.context)

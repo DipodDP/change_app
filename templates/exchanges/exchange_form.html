@@ -116,22 +116,6 @@
       </details>
     </div>
 
-    {% if is_edit %}
-      <div class="impact mt-5">
-        <h3>
-          {% if affected %}
-            {% blocktrans count n=affected|length %}Affects {{ n }} saved route{% plural %}Affects {{ n }} saved routes{% endblocktrans %}
-          {% else %}{% trans "Not part of any saved route yet" %}{% endif %}
-        </h3>
-        {% for item in affected %}
-          <div class="impact-row">
-            <span>{{ item.route.name }}</span>
-            <span>{% if item.broken %}{% trans "does not connect" %}{% else %}{{ item.rate|rate }}{% endif %}</span>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
       <a class="btn btn-quiet" href="{% url 'dashboard' %}">{% trans "Cancel" %}</a>

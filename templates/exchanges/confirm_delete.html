@@ -12,7 +12,6 @@
   </div>
 
   <p class="mt-0">{% blocktrans with item=object %}“{{ item }}” will be removed permanently.{% endblocktrans %}</p>
-  <p class="hint">{% trans "Any saved route that used it will lose that step." %}</p>
 
   <form method="post">
     {% csrf_token %}

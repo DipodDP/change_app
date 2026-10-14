@@ -10,7 +10,7 @@ web
 
 Expats, migrants, and frequent travellers who move money between currencies
 often enough that the spread matters. Anyone can sign up; accounts are private
-(every Exchange and Route carries an `owner`), and a new user arrives with no
+(every Exchange carries an `owner`), and a new user arrives with no
 data at all.
 
 Two genuine usage scenes, both first-class:
@@ -44,8 +44,6 @@ automatically.
   transfers that move money between banks).
 - Compare: pick source and target currency, get every chain ranked by payout,
   with the shortfall against the winner shown as a percentage.
-- Curate: save and name a route by hand, because which bank performed a
-  conversion is not derivable from the currency pair alone.
 - Demo data / Clear all is a single toggle in the header — the app can be
   populated with sample exchanges to be understood before any real entry.
 
@@ -60,7 +58,7 @@ automatically.
   money precision.
 - 30 currencies, ordered by usage; labels are the symbol where one is in common
   use and the code otherwise, and the picker shows both.
-- Terminology: *exchange* (one conversion performed), *route* (a named chain),
+- Terminology: *exchange* (one conversion performed), *route* (a chain of exchanges found by Compare),
   *provider* (the bank), *payout* (what you end up with), *rate* (received per
   unit spent).
 - Routes stay within a single bank unless an exchange records a destination

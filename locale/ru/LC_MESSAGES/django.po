@@ -636,3 +636,6 @@ msgstr "дата"
 
 msgid "Date"
 msgstr "Дата"
+
+msgid "Your exchanges are private to your account."
+msgstr "Ваши обмены видны только вам."

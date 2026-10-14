@@ -12,7 +12,7 @@ RATE_DP = Decimal("0.00000001")
 
 
 class Currency(models.TextChoices):
-    """Currencies a route can pass through.
+    """Currencies an exchange can be made in.
 
     Labels are the symbol where one is in common use and the code otherwise,
     since a bare "лв" or "₼" is only a hint — the dropdown shows both.
@@ -114,44 +114,3 @@ class Exchange(models.Model):
     def rate(self) -> Decimal:
         """Units of received currency per one unit of spent currency."""
         return (self.received_amount / self.spent_amount).quantize(RATE_DP)
-
-
-class Route(models.Model):
-    """A user-curated chain of exchanges, named for the providers involved.
-
-    Kept alongside automatic path-finding because which bank performed the
-    conversion is not derivable from the currency pair alone.
-    """
-
-    name = models.CharField(_("name"), max_length=120)
-    steps = models.ManyToManyField(Exchange, through="RouteStep", related_name="routes")
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="routes",
-        verbose_name=_("owner"),
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["name"]
-        verbose_name = _("route")
-        verbose_name_plural = _("routes")
-
-    def __str__(self):
-        return self.name
-
-    def ordered_steps(self):
-        return [s.exchange for s in self.route_steps.select_related("exchange")]
-
-
-class RouteStep(models.Model):
-    route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name="route_steps")
-    exchange = models.ForeignKey(Exchange, on_delete=models.CASCADE)
-    position = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ["position"]
-        unique_together = [("route", "position")]

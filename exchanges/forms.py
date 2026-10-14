@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from django.contrib.auth.forms import AuthenticationForm
 
-from .models import Currency, Exchange, Route
+from .models import Currency, Exchange
 from .suggestions import currency_choices
 
 
@@ -79,63 +79,6 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
         # A cleared date means the same as an untouched one: it happened today.
         return self.cleaned_data.get("made_on") or timezone.localdate()
 
-    def clean(self):
-        cleaned = super().clean()
-        spent = cleaned.get("spent_currency")
-        received = cleaned.get("received_currency")
-        if spent and received:
-            self._reject_if_it_breaks_routes(spent, received)
-        return cleaned
-
-    def _reject_if_it_breaks_routes(self, spent, received):
-        """Refuse a currency change that would strand a saved route.
-
-        A route is a chain: each step's received currency has to feed the next
-        step's spent currency. Editing one leg's currencies can sever that link,
-        and the route would then be permanently unusable with no way to repair
-        it from the dashboard. Cheaper to stop here than to leave the wreckage.
-        """
-        if not self.instance.pk:
-            return
-        if (
-            spent == self.instance.spent_currency
-            and received == self.instance.received_currency
-        ):
-            return
-
-        from .routing import chain_rate
-        from .suggestions import affected_routes
-
-        broken = []
-        for item in affected_routes(self.instance):
-            steps = item["steps"]
-            # Stand in for the edited record so the chain is checked as it
-            # would be after saving, without touching the database.
-            probe = [
-                Exchange(
-                    spent_currency=spent if s.pk == self.instance.pk else s.spent_currency,
-                    received_currency=(
-                        received if s.pk == self.instance.pk else s.received_currency
-                    ),
-                    spent_amount=s.spent_amount,
-                    received_amount=s.received_amount,
-                )
-                for s in steps
-            ]
-            try:
-                chain_rate(probe)
-            except ValueError:
-                broken.append(item["route"].name)
-
-        if broken:
-            raise forms.ValidationError(
-                _(
-                    "This change would break the saved route %(names)s. "
-                    "Edit or delete the route first."
-                )
-                % {"names": ", ".join(broken)}
-            )
-
 
 class CompareForm(StyledFormMixin, forms.Form):
     """The dashboard query: how much, from what, into what, which direction."""
@@ -179,53 +122,6 @@ class CompareForm(StyledFormMixin, forms.Form):
         if cleaned.get("base") and cleaned.get("base") == cleaned.get("target"):
             raise forms.ValidationError(_("Pick two different currencies to compare."))
         return cleaned
-
-
-class RouteForm(StyledFormMixin, forms.ModelForm):
-    """A named chain the user curates by hand."""
-
-    # Submitted by the chip builder as a comma-separated list of ids, so the
-    # order the user clicked is preserved (a multi-select cannot express it).
-    step_ids = forms.CharField(widget=forms.HiddenInput, required=False)
-
-    def __init__(self, *args, owner=None, **kwargs):
-        # Without an owner the form would validate against every user's
-        # exchanges and happily build a route out of someone else's steps.
-        self.owner = owner
-        super().__init__(*args, **kwargs)
-        self.fields["step_ids"].required = False
-
-    def clean_step_ids(self):
-        raw = (self.cleaned_data.get("step_ids") or "").strip()
-        if not raw:
-            raise forms.ValidationError(_("Add at least one exchange to the route."))
-        try:
-            pks = [int(x) for x in raw.split(",") if x]
-        except ValueError:
-            raise forms.ValidationError(_("Could not read the selected steps."))
-
-        available = Exchange.objects.all()
-        if self.owner is not None:
-            available = available.filter(owner=self.owner)
-        found = {e.pk: e for e in available.filter(pk__in=pks)}
-        missing = [pk for pk in pks if pk not in found]
-        if missing:
-            raise forms.ValidationError(_("Some selected exchanges no longer exist."))
-
-        steps = [found[pk] for pk in pks]
-        for prev, nxt in zip(steps, steps[1:]):
-            if prev.received_currency != nxt.spent_currency:
-                raise forms.ValidationError(
-                    _("These steps do not connect into a chain.")
-                )
-        self.ordered_steps = steps
-        return raw
-
-    class Meta:
-        model = Route
-        # The name is derived from the steps' banks by sync_route_names(), so
-        # it is not an input; the form only collects the chain itself.
-        fields = []
 
 
 class StyledLoginForm(StyledFormMixin, AuthenticationForm):

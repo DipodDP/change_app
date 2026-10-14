@@ -12,8 +12,7 @@
   </div>
 
   <p class="mt-0">
-    {% blocktrans count n=exchange_count %}{{ n }} exchange{% plural %}{{ n }} exchanges{% endblocktrans %}{% if route_count %},
-    {% blocktrans count n=route_count %}{{ n }} saved route{% plural %}{{ n }} saved routes{% endblocktrans %}{% endif %}
+    {% blocktrans count n=exchange_count %}{{ n }} exchange{% plural %}{{ n }} exchanges{% endblocktrans %}
     {% trans "will be permanently deleted." %}
   </p>
   <p class="hint">{% trans "This cannot be undone, and there is no export. Your recorded rates are the only copy." %}</p>

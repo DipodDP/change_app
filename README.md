@@ -72,7 +72,6 @@ To serve it on a LAN or tailnet, bind all interfaces and add the address to
   precision, since a sub-unit rate would collapse to `0.01` at money precision.
 - **Rates are historical.** They come from conversions you already made, so they
   answer "which way was cheaper" — not "what will it cost right now".
-- **Routes** can be found automatically (graph search over all recorded
-  exchanges) or saved by hand and named, because which bank performed a
-  conversion is not derivable from the currency pair.
+- **Routes** are found automatically by graph search over all recorded
+  exchanges, kept within one bank unless a transfer moves the money.
 - **Languages**: English and Russian, switchable in the header.

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n money %}
 
-{% block page_title %}{% trans "Your exchanges and routes" %}{% endblock %}
+{% block page_title %}{% trans "Your exchanges" %}{% endblock %}
 
 {% block content %}
 
@@ -128,63 +128,11 @@
   </section>
 {% endif %}
 
-{% if saved_routes %}
-  <section class="card" aria-labelledby="s-h">
-    <div class="card-head">
-      <h2 id="s-h">{% trans "Saved routes" %}</h2>
-      <a class="btn btn-ghost btn-sm" href="{% url 'route-create' %}">{% trans "New route" %}</a>
-    </div>
-    <div class="results">
-      {% for item in saved_routes %}
-        <article class="route">
-          <div class="route-top">
-            <div>
-              <strong>{{ item.route.name }}</strong>
-              <p class="rate-line mt-1">
-                {% if item.broken %}
-                  <span class="is-broken">{% trans "Steps do not connect" %}</span>
-                {% else %}
-                  1 {{ item.from_currency|symbol }} = <b>{{ item.rate|rate }} {{ item.to_currency|symbol }}</b>
-                {% endif %}
-              </p>
-            </div>
-            <div class="cell-actions">
-              <a class="btn btn-ghost btn-sm" href="{% url 'route-edit' item.route.pk %}">{% trans "Edit" %}</a>
-              <form method="post" action="{% url 'route-delete' item.route.pk %}">
-                {% csrf_token %}
-                <button class="btn btn-danger btn-sm" type="submit">{% trans "Delete" %}</button>
-              </form>
-            </div>
-          </div>
-          <div class="chain">
-            {% comment %}
-            Same Step shape the ranked routes use, so a transfer is marked and
-            a repeated bank stays quiet here too.
-            {% endcomment %}
-            {% for step in item.steps %}
-              <span class="hop"><span class="hop-cur">{{ step.leg.exchange.spent_currency|symbol }}</span></span>
-              <span class="hop-link{% if step.is_transfer %} is-move{% endif %}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6l6 6-6 6"/></svg>
-                {% if step.is_transfer %}<span class="sr-only">{% trans "transfer to" %}</span>{% endif %}
-                {% if step.show_bank %}<span class="hop-via">{{ step.bank }}</span>{% endif %}
-              </span>
-              {% if forloop.last %}<span class="hop"><span class="hop-cur">{{ step.leg.exchange.received_currency|symbol }}</span></span>{% endif %}
-            {% endfor %}
-          </div>
-        </article>
-      {% endfor %}
-    </div>
-  </section>
-{% endif %}
-
 {% if exchanges %}
   <section class="card card-ledger" aria-labelledby="l-h">
     <div class="card-head">
       <h2 id="l-h">{% trans "Your exchanges" %}</h2>
-      <div class="btn-pair">
-        {% if not saved_routes %}<a class="btn btn-ghost btn-sm" href="{% url 'route-create' %}">{% trans "New route" %}</a>{% endif %}
-        <a class="btn btn-primary btn-sm" href="{% url 'exchange-create' %}">{% trans "Record exchange" %}</a>
-      </div>
+      <a class="btn btn-primary btn-sm" href="{% url 'exchange-create' %}">{% trans "Record exchange" %}</a>
     </div>
 
     <div class="table-scroll">
@@ -201,19 +149,12 @@
           </tr>
         </thead>
         <tbody>
-          {% for row in rows %}
-            {% with e=row.exchange %}
+          {% for e in exchanges %}
             <tr>
               <td class="num" data-label="{% trans "Date" %}">{{ e.made_on|date:"SHORT_DATE_FORMAT" }}</td>
               <td class="num" data-label="{% trans "Spent" %}">{{ e.spent_amount|money }} {{ e.spent_currency|symbol }}</td>
               <td class="num" data-label="{% trans "Received" %}">{{ e.received_amount|money }} {{ e.received_currency|symbol }}</td>
-              <td data-label="{% trans "Via" %}">
-                {{ e.provider|default:"—" }}
-                <span class="used">
-                  {% if row.used %}{% blocktrans count n=row.used %}in {{ n }} route{% plural %}in {{ n }} routes{% endblocktrans %}
-                  {% else %}{% trans "not in any route" %}{% endif %}
-                </span>
-              </td>
+              <td data-label="{% trans "Via" %}">{{ e.provider|default:"—" }}</td>
               <td class="right num" data-label="{% trans "Rate" %}">1 {{ e.spent_currency|symbol }} = {{ e.rate|rate }} {{ e.received_currency|symbol }}</td>
               <td class="right cell-actions-wrap">
                 <div class="cell-actions">
@@ -221,7 +162,6 @@
                 </div>
               </td>
             </tr>
-            {% endwith %}
           {% endfor %}
         </tbody>
       </table>

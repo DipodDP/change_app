@@ -112,10 +112,6 @@ def annotate(exchanges: Iterable[Exchange]) -> tuple[Step, ...]:
     A chain that names the same bank on two consecutive arrows repeats itself
     — the money never left, so saying it twice is noise. The bank is announced
     when it changes and stays implied until it does.
-
-    Takes bare exchanges rather than an Option so a saved route, which is an
-    ordered chain and nothing more, is annotated by the same rule as a ranked
-    one instead of a second rule that drifts from it.
     """
     out: list[Step] = []
     held: str | None = None
