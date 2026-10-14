@@ -80,6 +80,17 @@ def bank_suggestions(
     ]
 
 
+def latest_conversion(exchanges: Iterable[Exchange]) -> Exchange | None:
+    """The newest row that changed currency — the likeliest next question.
+
+    Rows arrive newest first. A transfer moves money without converting it,
+    so it says nothing about which way the user converts.
+    """
+    return next(
+        (e for e in exchanges if e.spent_currency != e.received_currency), None
+    )
+
+
 def currency_choices(exchanges: Iterable[Exchange]) -> list[tuple[str, str]]:
     """Currency options with the user's own currencies floated to the top.
 

@@ -88,6 +88,9 @@ same empty state one tap later. The explanation and the two ways in come first.
     </ol>
 
     <a class="btn btn-primary" href="{% url 'exchange-create' %}">{% trans "Record an exchange" %}</a>
+    {% if not user.is_authenticated %}
+      <p class="helptext">{% trans "Already have an account?" %} <a href="{% url 'login' %}">{% trans "Sign in." %}</a></p>
+    {% endif %}
   </section>
 
 {% elif results %}
@@ -152,6 +155,13 @@ same empty state one tap later. The explanation and the two ways in come first.
       <h2 id="l-h">{% trans "Your exchanges" %}</h2>
       <a class="btn btn-primary btn-sm" href="{% url 'exchange-create' %}">{% trans "Record exchange" %}</a>
     </div>
+
+    {% if not user.is_authenticated %}
+      <p class="helptext guest-note">
+        {% url 'login' as login_url %}{% url 'register' as register_url %}
+        {% blocktrans %}<a href="{{ register_url }}">Register</a> or <a href="{{ login_url }}">sign in</a> to keep these exchanges.{% endblocktrans %}
+      </p>
+    {% endif %}
 
     <div class="table-scroll">
       <table>

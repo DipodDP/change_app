@@ -825,6 +825,9 @@ td.num { white-space: nowrap; }
 .steps li::marker { font-family: var(--mono); color: var(--ink-faint); }
 .steps b { color: var(--ink); font-weight: 600; }
 
+/* Sits under the ledger heading, before the rows it describes. */
+.guest-note { margin: 0 0 var(--s-4); }
+
 .msg {
   border-radius: var(--r-sm);
   padding: 12px 14px;
@@ -868,6 +871,10 @@ td.num { white-space: nowrap; }
      switch are navigation; the account actions are not, so they shed their
      labels rather than push the row into a scroll. */
   .topbar .who { display: none; }
+  /* A guest with data has Clear all, Sign in and Register — one control more
+     than a phone fits. Register gives way only then: the ledger's own note
+     links it right below. */
+  .topbar .is-destructive ~ .topbar-extra { display: none; }
 }
 
 /* A coarse pointer has no hover to fall back on and a fingertip to fit, so the

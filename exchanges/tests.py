@@ -653,28 +653,160 @@ class ExchangeEditTests(SignedIn, TestCase):
         self.assertEqual(self.a.received_amount, Decimal("30.00"))
 
 
-class AuthRequiredTests(TestCase):
-    """Every view is behind a login; anonymous visitors are bounced."""
+@override_settings(LANGUAGE_CODE="en")
+class GuestTests(TestCase):
+    """Nothing needs an account. A guest's rows belong to their browser session
+    until they sign in, and no one else's rows are ever reachable — including
+    history left ownerless by a deleted account."""
 
     def setUp(self):
-        self.exchange = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
+        self.orphan = make(100, Currency.BYN, "28.84", Currency.EUR, "Prior")
 
-    def test_all_views_redirect_anonymous(self):
-        urls = [
-            reverse("dashboard"),
+    def _record(self, client=None):
+        return (client or self.client).post(
             reverse("exchange-create"),
-            reverse("exchange-edit", args=[self.exchange.pk]),
-            reverse("exchange-delete", args=[self.exchange.pk]),
-            reverse("reset-data"),
-        ]
-        for url in urls:
-            with self.subTest(url=url):
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, 302)
-                self.assertIn(reverse("login"), response["Location"])
+            {
+                "spent_amount": "50",
+                "spent_currency": "USD",
+                "received_amount": "45",
+                "received_currency": "EUR",
+                "provider": "Wise",
+            },
+        )
+
+    def test_dashboard_opens_without_signing_in(self):
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'class="steps"')
+        empty = r.content.decode().split('class="empty"')[1]
+        self.assertIn("Already have an account?", empty)
+        self.assertIn(reverse("login"), empty)
 
     def test_login_page_is_reachable(self):
         self.assertEqual(self.client.get(reverse("login")).status_code, 200)
+
+    def test_orphaned_history_is_unreachable(self):
+        self.assertNotContains(self.client.get(reverse("dashboard")), "Prior")
+        edit = self.client.get(reverse("exchange-edit", args=[self.orphan.pk]))
+        self.assertEqual(edit.status_code, 404)
+        self.client.post(reverse("exchange-delete", args=[self.orphan.pk]))
+        self.client.post(reverse("reset-data"), {"confirm": "1"})
+        self.assertTrue(Exchange.objects.filter(pk=self.orphan.pk).exists())
+
+    def test_a_first_record_opens_on_usd_to_eur(self):
+        form = self.client.get(reverse("exchange-create")).context["form"]
+        self.assertEqual(form["spent_currency"].value(), Currency.USD)
+        self.assertEqual(form["received_currency"].value(), Currency.EUR)
+
+    def test_guest_records_and_compares(self):
+        self._record()
+        mine = Exchange.objects.get(provider="Wise")
+        self.assertIsNone(mine.owner)
+        self.assertTrue(mine.guest_key)
+        self.assertTrue(self.client.get(reverse("dashboard")).context["results"])
+
+    def test_guests_cannot_reach_each_other(self):
+        from django.test import Client
+
+        self._record()
+        mine = Exchange.objects.get(provider="Wise")
+        other = Client()
+        self.assertNotContains(other.get(reverse("dashboard")), "Wise")
+        edit = other.get(reverse("exchange-edit", args=[mine.pk]))
+        self.assertEqual(edit.status_code, 404)
+
+    def test_signing_in_moves_guest_rows_into_the_account(self):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create_user("ann", password="pw-ann-12345")
+        make(1, Currency.GEL, 1, Currency.TRY, "Old", owner=user)
+        self._record()
+        self.client.post(reverse("login"), {"username": "ann", "password": "pw-ann-12345"})
+        self.assertEqual(Exchange.objects.filter(owner=user).count(), 2)
+        self.assertFalse(Exchange.objects.exclude(guest_key="").exists())
+
+    def test_guest_ledger_is_capped(self):
+        from unittest.mock import patch
+
+        with patch("exchanges.views.GUEST_LIMIT", 2):
+            self._record()
+            self._record()
+            r = self._record()
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, reverse("register"))
+        self.assertEqual(Exchange.objects.exclude(guest_key="").count(), 2)
+
+    def test_guest_ledger_offers_an_account(self):
+        self._record()
+        r = self.client.get(reverse("dashboard"))
+        ledger = r.content.decode().split('id="l-h"')[1]
+        self.assertIn(reverse("register"), ledger)
+
+    def test_purge_removes_only_abandoned_guest_rows(self):
+        from django.core.management import call_command
+
+        self._record()
+        abandoned = make(10, Currency.USD, 9, Currency.EUR, "Gone")
+        abandoned.guest_key = "no-such-session"
+        abandoned.save()
+
+        call_command("purge_guests", verbosity=0)
+
+        self.assertTrue(Exchange.objects.filter(provider="Wise").exists())
+        self.assertFalse(Exchange.objects.filter(pk=abandoned.pk).exists())
+        self.assertTrue(Exchange.objects.filter(pk=self.orphan.pk).exists())
+
+
+@override_settings(LANGUAGE_CODE="en")
+class RegistrationTests(TestCase):
+    """An account is an email and a password; the email is also the sign-in."""
+
+    def _register(self, email="Ann@Example.com", password="a-long-pass-42"):
+        return self.client.post(
+            reverse("register"),
+            {"email": email, "password1": password, "password2": password},
+        )
+
+    def test_guests_are_offered_registration(self):
+        self.assertContains(self.client.get(reverse("dashboard")), reverse("register"))
+        self.assertContains(self.client.get(reverse("login")), reverse("register"))
+
+    def test_registering_creates_and_signs_in_the_account(self):
+        from django.contrib.auth import get_user_model
+
+        r = self._register()
+        self.assertRedirects(r, reverse("dashboard"))
+        user = get_user_model().objects.get()
+        self.assertEqual(user.username, "ann@example.com")
+        self.assertEqual(user.email, "ann@example.com")
+        self.assertEqual(self.client.get(reverse("dashboard")).context["user"], user)
+
+    def test_an_email_registers_once_whatever_its_case(self):
+        from django.contrib.auth import get_user_model
+
+        self._register()
+        self.client.logout()
+        r = self._register(email="ANN@example.com")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_registering_keeps_what_the_guest_recorded(self):
+        self.client.post(
+            reverse("exchange-create"),
+            {"spent_amount": "50", "spent_currency": "USD",
+             "received_amount": "45", "received_currency": "EUR"},
+        )
+        self._register()
+        self.assertEqual(Exchange.objects.get().owner.username, "ann@example.com")
+
+    def test_sign_in_takes_the_email_in_any_case(self):
+        self._register()
+        self.client.logout()
+        r = self.client.post(
+            reverse("login"),
+            {"username": "ANN@example.com", "password": "a-long-pass-42"},
+        )
+        self.assertRedirects(r, reverse("dashboard"))
 
 
 class OwnerScopingTests(TestCase):
@@ -2023,6 +2155,19 @@ class HardeningTests(SignedIn, TestCase):
     def test_a_new_record_does_not_default_to_a_transfer(self):
         form = self.client.get(reverse("exchange-create")).context["form"]
         self.assertNotEqual(form["spent_currency"].value(), form["received_currency"].value())
+
+    def test_a_new_record_follows_the_latest_conversion(self):
+        # BYN appears in more rows, but the user converts RUB into it: the
+        # direction comes from what they did last, not from frequency. The
+        # newer transfer converts nothing, so it is skipped.
+        make(1000, Currency.RUB, 35, Currency.BYN, "Prior")
+        make(35, Currency.BYN, 10, Currency.EUR, "Prior")
+        make(500, Currency.RUB, 17, Currency.BYN, "Prior")
+        make(17, Currency.BYN, 17, Currency.BYN, "Prior", received_provider="Alfa")
+        Exchange.objects.update(owner=self.user)
+        form = self.client.get(reverse("exchange-create")).context["form"]
+        self.assertEqual(form["spent_currency"].value(), Currency.RUB)
+        self.assertEqual(form["received_currency"].value(), Currency.BYN)
 
     def test_a_rejected_query_keeps_what_was_typed(self):
         r = self.client.get(reverse("dashboard"), {"base": "EUR", "target": "EUR", "amount": "250"})

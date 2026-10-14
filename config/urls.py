@@ -3,6 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from exchanges.forms import StyledLoginForm
+from exchanges.views import register
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -12,6 +13,7 @@ urlpatterns = [
         auth_views.LoginView.as_view(authentication_form=StyledLoginForm),
         name="login",
     ),
+    path("accounts/register/", register, name="register"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("", include("exchanges.urls")),
 ]

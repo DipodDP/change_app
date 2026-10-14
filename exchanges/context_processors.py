@@ -1,6 +1,6 @@
 from django.conf import settings
 
-from .models import Exchange
+from .views import owned_exchanges
 
 STYLESHEET = settings.BASE_DIR / "static" / "css" / "app.css"
 
@@ -19,10 +19,10 @@ def stylesheet_version(request):
 def ledger(request):
     """The header's Clear all appears only when there is something to clear.
 
-    Scoped to the signed-in account: an unscoped check would offer a brand-new
-    user the destroy control for someone else's data.
+    Scoped like every other read — the account, or this browser signed out:
+    an unscoped check would offer a newcomer the destroy control for someone
+    else's data.
     """
-    user = getattr(request, "user", None)
-    if user is None or not user.is_authenticated:
+    if not hasattr(request, "user") or not hasattr(request, "session"):
         return {"has_exchanges": False}
-    return {"has_exchanges": Exchange.objects.filter(owner=user).exists()}
+    return {"has_exchanges": owned_exchanges(request).exists()}

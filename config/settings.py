@@ -155,6 +155,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # https://docs.djangoproject.com/en/6.1/topics/auth/
 
 LOGIN_URL = 'login'
+# A guest's exchanges live as long as their session: 30 days from the last
+# visit, renewed on every request, then removed by `purge_guests`.
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 

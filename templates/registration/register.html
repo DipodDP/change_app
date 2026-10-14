@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Register" %} · {% trans "Change" %}{% endblock %}
+
+{% block page_title %}{% trans "Register" %}{% endblock %}
+{% block page_title_class %}page-h1 card-narrow-h1{% endblock %}
+
+{% block content %}
+<section class="card card-narrow">
+  <div class="card-head">
+    <span class="hint">{% trans "Your exchanges are private to your account." %}</span>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <ul class="errorlist">
+        {% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    <div class="field">
+      <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+      {{ form.email }}
+      {{ form.email.errors }}
+    </div>
+
+    <div class="field mt-3">
+      <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+      {{ form.password1 }}
+      {{ form.password1.errors }}
+    </div>
+
+    <div class="field mt-3">
+      <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+      {{ form.password2 }}
+      <span class="helptext">{% trans "Passwords cannot be recovered — keep yours somewhere safe." %}</span>
+      {{ form.password2.errors }}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{% trans "Register" %}</button>
+      <a class="btn btn-quiet" href="{% url 'login' %}">{% trans "Sign in" %}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

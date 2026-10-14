@@ -9,9 +9,10 @@ web
 ## Users
 
 Expats, migrants, and frequent travellers who move money between currencies
-often enough that the spread matters. Anyone can sign up; accounts are private
-(every Exchange carries an `owner`), and a new user arrives with no
-data at all.
+often enough that the spread matters. Everything works without an account:
+a guest's exchanges belong to their browser session and move into an account
+(email + password) on registering or signing in. Accounts are private, and a
+new visitor arrives with no data at all.
 
 Two genuine usage scenes, both first-class:
 
@@ -102,6 +103,11 @@ WCAG AA contrast (secondary text documented at 6.9:1 on the ground) and uses a
 and layout must tolerate roughly 30% string growth.
 
 ## Open Decisions
+
+- To do: email verification and password reset. Accounts are an email and a
+  password today, with no mail sent and no recovery.
+- To do if the app goes public: per-IP rate limiting on guest writes. Today a
+  guest session is capped at 100 exchanges and purged 30 days after last use.
 
 - Visual scope (refine the incumbent world vs. replace it) is deliberately
   undecided; the user chose to audit first.

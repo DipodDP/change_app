@@ -94,6 +94,10 @@ class Exchange(models.Model):
         related_name="exchanges",
         verbose_name=_("owner"),
     )
+    # A signed-out visitor's rows, keyed to their browser session until they
+    # sign in and the rows move to the account. Never set alongside `owner`:
+    # an ownerless row with no key is history from a deleted account.
+    guest_key = models.CharField(max_length=64, blank=True, db_index=True, editable=False)
     # When the conversion happened, which is not when it was typed in: a
     # backlog entered later must not pass for the newest rate.
     made_on = models.DateField(_("date"), default=timezone.localdate)

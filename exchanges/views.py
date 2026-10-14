@@ -1,16 +1,19 @@
+import secrets
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
+from django.contrib.auth.signals import user_logged_in
+from django.dispatch import receiver
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 
-from .forms import CompareForm, ExchangeForm
+from .forms import CompareForm, ExchangeForm, RegisterForm
 from .models import Currency, Exchange
 from .routing import GET, SEND, blocked_chain, compare, group_options, latest_per_lane
-from .suggestions import bank_suggestions
+from .suggestions import bank_suggestions, latest_conversion
 
 SYMBOL = dict(Currency.choices)
 
@@ -33,9 +36,7 @@ def opening_query(request, exchanges):
         query = {**last, "amount": Decimal(last["amount"])}
         if compare(exchanges, query["base"], query["target"], query["amount"], mode=query["mode"]):
             return query
-    latest = next(
-        (e for e in exchanges if e.spent_currency != e.received_currency), None
-    )
+    latest = latest_conversion(exchanges)
     if latest:
         return {
             "amount": Decimal("100"),
@@ -46,12 +47,54 @@ def opening_query(request, exchanges):
     return None
 
 
+# Nothing needs an account: a signed-out visitor's rows carry a random key
+# held in their session, and sign-in moves them to the account. The cap
+# bounds what one session can leave behind before `purge_guests` clears it.
+GUEST_KEY = "guest_key"
+GUEST_LIMIT = 100
+
+
 def owned_exchanges(request):
-    """Only what this user recorded. Ownership is the whole access model."""
-    return Exchange.objects.filter(owner=request.user)
+    """Only what this user — or this browser, signed out — recorded.
+
+    Ownership is the whole access model. A guest without a key owns nothing;
+    matching on an empty key would hand them every row a deleted account left
+    behind.
+    """
+    if request.user.is_authenticated:
+        return Exchange.objects.filter(owner=request.user)
+    key = request.session.get(GUEST_KEY)
+    if not key:
+        return Exchange.objects.none()
+    return Exchange.objects.filter(owner=None, guest_key=key)
 
 
-@login_required
+def register(request):
+    """Create the account and sign straight in — which also moves anything
+    recorded before registering into it."""
+    if request.user.is_authenticated:
+        return redirect(reverse("dashboard"))
+    form = RegisterForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        login(request, form.save())
+        return redirect(reverse("dashboard"))
+    return render(request, "registration/register.html", {"form": form})
+
+
+@receiver(user_logged_in)
+def claim_guest_exchanges(sender, request, user, **kwargs):
+    """Whatever this browser recorded signed out now belongs to the account.
+
+    Django keeps session data across sign-in, so the key is still readable
+    here; it is dropped afterwards so the rows cannot be claimed twice.
+    """
+    key = request.session.pop(GUEST_KEY, None)
+    if key:
+        Exchange.objects.filter(owner=None, guest_key=key).update(
+            owner=user, guest_key=""
+        )
+
+
 def dashboard(request):
     exchanges = list(owned_exchanges(request))
 
@@ -151,12 +194,25 @@ def _exchange_context(request, form, instance=None):
     }
 
 
-@login_required
 def exchange_create(request):
     form = ExchangeForm(request.POST or None, exchanges=owned_exchanges(request))
+    guest = not request.user.is_authenticated
+    if guest and request.method == "POST" and (
+        owned_exchanges(request).count() >= GUEST_LIMIT
+    ):
+        form.add_error(
+            None,
+            _("Sign in or register to record more than %(limit)d exchanges.")
+            % {"limit": GUEST_LIMIT},
+        )
     if request.method == "POST" and form.is_valid():
         exchange = form.save(commit=False)
-        exchange.owner = request.user
+        if guest:
+            exchange.guest_key = request.session.setdefault(
+                GUEST_KEY, secrets.token_urlsafe(32)
+            )
+        else:
+            exchange.owner = request.user
         exchange.save()
         messages.success(request, _("Exchange recorded."))
         return redirect(reverse("dashboard"))
@@ -165,7 +221,6 @@ def exchange_create(request):
     )
 
 
-@login_required
 def exchange_edit(request, pk):
     exchange = get_object_or_404(owned_exchanges(request), pk=pk)
     form = ExchangeForm(
@@ -182,7 +237,6 @@ def exchange_edit(request, pk):
     )
 
 
-@login_required
 def exchange_delete(request, pk):
     exchange = get_object_or_404(owned_exchanges(request), pk=pk)
     if request.method == "POST":
@@ -192,7 +246,6 @@ def exchange_delete(request, pk):
     return render(request, "exchanges/confirm_delete.html", {"object": exchange})
 
 
-@login_required
 def reset_data(request):
     """Clear all — wipe every exchange this user owns.
 

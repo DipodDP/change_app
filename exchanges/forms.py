@@ -4,10 +4,11 @@ from django import forms
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from .models import Currency, Exchange
-from .suggestions import currency_choices
+from .suggestions import currency_choices, latest_conversion
 
 
 class StyledFormMixin:
@@ -86,10 +87,17 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
                 self.fields[name].choices = choices
             # Both selects would otherwise open on the same currency, which is
             # a transfer: the form would describe the rare case by default.
-            # The user's two most-used currencies are the likely conversion.
+            # The direction of the user's latest conversion is the likely next
+            # one; with none yet, the most common pair.
             if not self.is_bound and not self.instance.pk:
-                self.initial.setdefault("spent_currency", choices[0][0])
-                self.initial.setdefault("received_currency", choices[1][0])
+                latest = latest_conversion(exchanges)
+                spent, received = (
+                    (latest.spent_currency, latest.received_currency)
+                    if latest
+                    else (Currency.USD, Currency.EUR)
+                )
+                self.initial.setdefault("spent_currency", spent)
+                self.initial.setdefault("received_currency", received)
         self.fields["made_on"].required = False
 
     def clean_made_on(self):
@@ -141,4 +149,45 @@ class CompareForm(StyledFormMixin, forms.Form):
 
 
 class StyledLoginForm(StyledFormMixin, AuthenticationForm):
-    """Django's login form wearing the app's input styling."""
+    """Django's login form wearing the app's input styling.
+
+    The account's username is its email, stored lowercase, so the field asks
+    for an email and folds case before Django looks the account up.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        username = self.fields["username"]
+        username.label = _("Email")
+        username.widget.input_type = "email"
+        username.widget.attrs["autocomplete"] = "email"
+
+    def clean_username(self):
+        return self.cleaned_data["username"].strip().lower()
+
+
+class RegisterForm(StyledFormMixin, UserCreationForm):
+    """An email and a password. The email doubles as the username, so the
+    stock sign-in works unchanged."""
+
+    email = forms.EmailField(
+        label=_("Email"),
+        widget=forms.EmailInput(attrs={"autocomplete": "email", "autofocus": True}),
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = get_user_model()
+        fields = ("email",)
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if get_user_model().objects.filter(username__iexact=email).exists():
+            raise forms.ValidationError(_("An account with this email already exists."))
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.username = user.email = self.cleaned_data["email"]
+        if commit:
+            user.save()
+        return user

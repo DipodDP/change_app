@@ -670,3 +670,30 @@ msgstr "с учётом комиссии и свяжет обмены в цеп�
 
 msgid "two currencies: every chain is ranked by what you end up with."
 msgstr "две валюты: все цепочки выстроятся по тому, сколько вы получите в итоге."
+
+
+msgid "Register"
+msgstr "Регистрация"
+
+msgid "Email"
+msgstr "Эл. почта"
+
+msgid "An account with this email already exists."
+msgstr "Аккаунт с этой почтой уже есть."
+
+#, python-format
+msgid "Sign in or register to record more than %(limit)d exchanges."
+msgstr "Войдите или зарегистрируйтесь, чтобы записать больше %(limit)d обменов."
+
+#, python-format
+msgid "<a href=\"%(register_url)s\">Register</a> or <a href=\"%(login_url)s\">sign in</a> to keep these exchanges."
+msgstr "<a href=\"%(register_url)s\">Зарегистрируйтесь</a> или <a href=\"%(login_url)s\">войдите</a>, чтобы сохранить эти обмены."
+
+msgid "Passwords cannot be recovered — keep yours somewhere safe."
+msgstr "Пароль нельзя восстановить — сохраните его в надёжном месте."
+
+msgid "Already have an account?"
+msgstr "Уже есть аккаунт?"
+
+msgid "Sign in."
+msgstr "Войдите."

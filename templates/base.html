@@ -31,6 +31,12 @@
         {% csrf_token %}
         <button type="submit" class="btn btn-quiet btn-sm">{% trans "Sign out" %}<span class="who">{{ user.get_username }}</span></button>
       </form>
+    {% else %}
+      {% if has_exchanges %}
+        <a class="btn btn-quiet btn-sm is-destructive" href="{% url 'reset-data' %}">{% trans "Clear all" %}</a>
+      {% endif %}
+      <a class="btn btn-quiet btn-sm" href="{% url 'login' %}">{% trans "Sign in" %}</a>
+      <a class="btn btn-quiet btn-sm topbar-extra" href="{% url 'register' %}">{% trans "Register" %}</a>
     {% endif %}
 
     <form action="{% url 'set_language' %}" method="post" class="lang">
