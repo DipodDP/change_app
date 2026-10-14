@@ -526,12 +526,12 @@ class NewFeatureViewTests(SignedIn, TestCase):
         r = self.client.get(reverse("exchange-create"))
         self.assertTrue(r.context["bank_picks"])
 
-    def test_reset_clears_then_reloads(self):
-        # Wiping is confirmed; reloading the example is not.
+    def test_reset_clears_and_never_refills(self):
+        # The same URL used to load sample rows into an empty account.
         self.client.post(reverse("reset-data"), {"confirm": "1"})
         self.assertEqual(Exchange.objects.count(), 0)
         self.client.post(reverse("reset-data"))
-        self.assertEqual(Exchange.objects.count(), len(__import__("exchanges.views", fromlist=["SEED"]).SEED))
+        self.assertEqual(Exchange.objects.count(), 0)
 
     def test_reset_requires_post(self):
         before = Exchange.objects.count()
@@ -1304,27 +1304,21 @@ class ResetGuardTests(SignedIn, TestCase):
         self.assertFalse(Exchange.objects.filter(pk=self.keep.pk).exists())
         self.assertTrue(Exchange.objects.filter(pk=theirs.pk).exists())
 
-    def test_loading_demo_data_needs_no_confirmation(self):
-        # Creating data is not destructive; only the wipe branch is guarded.
-        Exchange.objects.all().delete()
-        self.client.post(reverse("reset-data"))
-        self.assertTrue(Exchange.objects.filter(owner=self.user).exists())
-
 
 @override_settings(LANGUAGE_CODE="en")
 class HeaderLabelTests(SignedIn, TestCase):
-    """The header button toggles between two opposite actions, so its label
-    must follow what THIS user owns, not what the database happens to hold."""
+    """The wipe appears only for an account that has something to wipe, judged
+    by what THIS user owns, not what the database happens to hold."""
 
-    def test_empty_account_is_offered_demo_data(self):
+    def test_empty_account_is_not_offered_the_wipe(self):
         from django.contrib.auth import get_user_model
 
         other = get_user_model().objects.create_user("other", password="pw-test-2")
         make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=other)
 
         body = self.client.get(reverse("dashboard")).content.decode()
-        self.assertIn("Demo data", body)
         self.assertNotIn("Clear all", body)
+        self.assertNotIn(reverse("reset-data"), body)
 
     def test_account_with_exchanges_is_offered_the_wipe(self):
         make("100", Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user)
@@ -1333,31 +1327,63 @@ class HeaderLabelTests(SignedIn, TestCase):
 
 
 @override_settings(LANGUAGE_CODE="en")
-class DemoDataTests(SignedIn, TestCase):
-    """The demo exists to show the comparison working.
+class FirstRunTests(SignedIn, TestCase):
+    """A new account has nothing to compare, and a remembered comparison can
+    lose its route. Neither moment may end on a dead end."""
 
-    Its whole job is the dashboard's default query, so that query must return
-    routes — a worked example that produces an empty state teaches the
-    opposite of what it is for.
-    """
+    def test_empty_account_is_not_shown_a_query_it_cannot_answer(self):
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertNotIn('class="query"', body)
 
-    def test_demo_data_answers_the_default_query(self):
-        self.client.post(reverse("reset-data"))
-        rows = list(Exchange.objects.filter(owner=self.user))
-        options = compare(rows, Currency.BYN, Currency.HUF, Decimal("100"))
-        self.assertTrue(options, "demo data must produce at least one BYN->HUF route")
+    def test_empty_state_has_one_action_record(self):
+        body = self.client.get(reverse("dashboard")).content.decode()
+        empty = body[body.index('class="empty'):body.index("</main>")]
+        self.assertIn(reverse("exchange-create"), empty)
+        self.assertEqual(empty.count('class="btn'), 1)
 
-    def test_demo_data_shows_a_multi_leg_comparison(self):
-        # A single-leg answer would never exercise the penalty tag or the
-        # branch spine, which is the part of the product worth demonstrating.
-        self.client.post(reverse("reset-data"))
-        rows = list(Exchange.objects.filter(owner=self.user))
-        options = compare(rows, Currency.BYN, Currency.HUF, Decimal("100"))
-        self.assertGreaterEqual(len(options), 2, "demo should offer a comparison")
-        self.assertTrue(
-            any(len(o.legs) > 1 for o in options),
-            "at least one demo route should chain more than one leg",
+    def test_first_exchange_answers_the_default_query(self):
+        make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=self.user)
+        r = self.client.get(reverse("dashboard"))
+        self.assertTrue(r.context["results"], "the user's own pair should route")
+        self.assertEqual(r.context["form"]["base"].value(), Currency.USD)
+
+    def test_first_transfer_does_not_become_the_default_query(self):
+        make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=self.user)
+        make(
+            "45", Currency.EUR, "44", Currency.EUR, "Wise",
+            owner=self.user, received_provider="Prior",
         )
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.context["form"]["target"].value(), Currency.EUR)
+        self.assertEqual(r.context["form"]["base"].value(), Currency.USD)
+
+    def test_empty_state_explains_how_it_works_in_three_steps(self):
+        body = self.client.get(reverse("dashboard")).content.decode()
+        steps = body[body.index('class="steps"'):body.index("</ol>")]
+        self.assertEqual(steps.count("<li"), 3)
+
+    def test_last_comparison_is_reopened(self):
+        make("100", Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user)
+        make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=self.user)
+        self.client.get(
+            reverse("dashboard"),
+            {"mode": "get", "base": "BYN", "target": "EUR", "amount": "250"},
+        )
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.context["query"]["base"], Currency.BYN)
+        self.assertEqual(r.context["query"]["amount"], Decimal("250"))
+        self.assertTrue(r.context["is_get_mode"])
+        self.assertTrue(r.context["results"])
+        self.assertEqual(r.context["form"]["amount"].value(), Decimal("250"))
+
+    def test_remembered_comparison_without_a_route_falls_back(self):
+        old = make("100", Currency.BYN, "28.84", Currency.EUR, "Prior", owner=self.user)
+        self.client.get(reverse("dashboard"), {"base": "BYN", "target": "EUR"})
+        old.delete()
+        make("50", Currency.USD, "45", Currency.EUR, "Wise", owner=self.user)
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.context["query"]["base"], Currency.USD)
+        self.assertTrue(r.context["results"])
 
 
 class BlockedChainTests(TestCase):

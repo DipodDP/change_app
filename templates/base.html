@@ -25,11 +25,6 @@
       {% if has_exchanges %}
         {# Destructive: a link to the confirmation, never a one-click POST. #}
         <a class="btn btn-quiet btn-sm is-destructive" href="{% url 'reset-data' %}">{% trans "Clear all" %}</a>
-      {% else %}
-        <form action="{% url 'reset-data' %}" method="post" class="form-inline">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-quiet btn-sm">{% trans "Demo data" %}</button>
-        </form>
       {% endif %}
 
       <form action="{% url 'logout' %}" method="post" class="form-inline">

@@ -812,6 +812,19 @@ td.num { white-space: nowrap; }
 .empty h2 { color: var(--ink); font-size: 18px; }
 .empty p { margin: 0; max-width: 46ch; }
 
+/* How it works, in the order it has to happen. Left-aligned inside the
+   centred panel: three sentences read down a shared edge, not a ragged one. */
+.steps {
+  margin: 0;
+  padding-left: 1.5em;
+  max-width: 46ch;
+  text-align: left;
+  display: grid;
+  gap: var(--s-2);
+}
+.steps li::marker { font-family: var(--mono); color: var(--ink-faint); }
+.steps b { color: var(--ink); font-weight: 600; }
+
 .msg {
   border-radius: var(--r-sm);
   padding: 12px 14px;

@@ -5,6 +5,11 @@
 
 {% block content %}
 
+{% comment %}
+A new account has nothing to route, so a query form would only lead to the
+same empty state one tap later. The explanation and the two ways in come first.
+{% endcomment %}
+{% if exchanges %}
 <section class="card" aria-labelledby="q-h">
   <div class="card-head">
     <h2 id="q-h">{% trans "Compare routes" %}</h2>
@@ -70,11 +75,18 @@
     </ul>
   {% endif %}
 </section>
+{% endif %}
 
 {% if not exchanges %}
-  <section class="empty">
-    <h2>{% trans "No exchanges recorded yet" %}</h2>
-    <p>{% blocktrans %}Add the conversions you have actually made — what you handed over and what you got back. Change works out the real rate, chains them together, and tells you which way loses the least.{% endblocktrans %}</p>
+  <section class="empty" aria-labelledby="e-h">
+    <h2 id="e-h">{% trans "No exchanges recorded yet" %}</h2>
+    {# Numbered because the order is the point: nothing compares until something is recorded. #}
+    <ol class="steps">
+      <li><b>{% trans "Record" context "how it works" %}</b> {% trans "what you spent and what you received, after any real conversion." %}</li>
+      <li><b>{% trans "Change works out the rate," %}</b> {% trans "commission included, and links your exchanges into chains." %}</li>
+      <li><b>{% trans "Compare" context "how it works" %}</b> {% trans "two currencies: every chain is ranked by what you end up with." %}</li>
+    </ol>
+
     <a class="btn btn-primary" href="{% url 'exchange-create' %}">{% trans "Record an exchange" %}</a>
   </section>
 

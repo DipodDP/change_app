@@ -226,10 +226,6 @@ msgstr[1] "Удалено %(count)d обмена."
 msgstr[2] "Удалено %(count)d обменов."
 msgstr[3] "Удалено %(count)d обменов."
 
-#: exchanges/views.py:427
-msgid "Demo data loaded."
-msgstr "Демо-данные загружены."
-
 #: templates/base.html:6 templates/base.html:21 templates/base.html:62
 #: templates/exchanges/confirm_delete.html:4
 #: templates/exchanges/confirm_reset.html:4
@@ -241,10 +237,6 @@ msgstr "Change"
 #: templates/base.html:27
 msgid "Clear all"
 msgstr "Очистить"
-
-#: templates/base.html:31
-msgid "Demo data"
-msgstr "Демо-данные"
 
 #: templates/base.html:37
 msgid "Sign out"
@@ -658,3 +650,23 @@ msgstr "Удалить все обмены"
 
 msgid "Compare uses your latest rate for each bank and currency pair."
 msgstr "Для сравнения берётся последний курс по каждому банку и паре валют."
+
+msgctxt "how it works"
+msgid "Record"
+msgstr "Запишите,"
+
+msgctxt "how it works"
+msgid "Compare"
+msgstr "Выберите"
+
+msgid "what you spent and what you received, after any real conversion."
+msgstr "сколько отдали и сколько получили, после каждого реального обмена."
+
+msgid "Change works out the rate,"
+msgstr "Change посчитает курс"
+
+msgid "commission included, and links your exchanges into chains."
+msgstr "с учётом комиссии и свяжет обмены в цепочки."
+
+msgid "two currencies: every chain is ranked by what you end up with."
+msgstr "две валюты: все цепочки выстроятся по тому, сколько вы получите в итоге."

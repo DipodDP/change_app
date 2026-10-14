@@ -44,8 +44,11 @@ automatically.
   transfers that move money between banks).
 - Compare: pick source and target currency, get every chain ranked by payout,
   with the shortfall against the winner shown as a percentage.
-- Demo data / Clear all is a single toggle in the header — the app can be
-  populated with sample exchanges to be understood before any real entry.
+- Clear all (header, only when data exists) wipes the account after a
+  confirmation page. There is no demo dataset: an empty account explains the
+  three steps and asks for a first real exchange.
+- The dashboard opens on the last comparison run on this device (session),
+  while it still routes; otherwise on the newest conversion.
 
 ## Capabilities and Constraints
 
@@ -74,8 +77,8 @@ see Evidence.
 ## Evidence on Hand
 
 - Real worked example in `README.md` (BYN → HUF via EUR beats via USD by 316.37
-  HUF per 100 BYN) — genuine, safe to use as demonstration content.
-- Built-in demo dataset, reachable from the header.
+  HUF per 100 BYN) — genuine, safe to use in docs and tests, never as
+  data loaded into an account.
 - No testimonials, customers, benchmarks, pricing, press, or logo assets exist.
   Future work must not invent them.
 
