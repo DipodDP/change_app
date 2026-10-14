@@ -1949,3 +1949,10 @@ class LatestPerLaneTests(SignedIn, TestCase):
         self.assertEqual(response.context["current"], {self.new.pk})
         self.assertContains(response, "is-stale", count=2)
 
+class StylesheetVersionTests(SignedIn, TestCase):
+    def test_the_stylesheet_url_changes_when_the_file_does(self):
+        # Without it Chrome kept an old app.css after the fonts moved in-house,
+        # and Russian fell back to a system face until a hard reload.
+        self.assertRegex(
+            self.client.get(reverse("dashboard")).content.decode(), r"app\.css\?v=\d+"
+        )

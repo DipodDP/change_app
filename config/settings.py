@@ -86,6 +86,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'exchanges.context_processors.ledger',
+                'exchanges.context_processors.stylesheet_version',
             ],
         },
     },
