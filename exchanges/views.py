@@ -9,7 +9,7 @@ from django.utils.translation import ngettext
 
 from .forms import CompareForm, ExchangeForm
 from .models import Currency, Exchange
-from .routing import GET, SEND, blocked_chain, compare, group_options
+from .routing import GET, SEND, blocked_chain, compare, group_options, latest_per_lane
 from .suggestions import bank_suggestions
 
 SYMBOL = dict(Currency.choices)
@@ -84,6 +84,8 @@ def dashboard(request):
             "results": results,
             "groups": groups,
             "exchanges": exchanges,
+            # Older records in a lane are history: listed, but not routed.
+            "current": {e.pk for e in latest_per_lane(exchanges)},
             "blocked": blocked,
             "symbols": SYMBOL,
             "is_get_mode": bool(query and query["mode"] == GET),

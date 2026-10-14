@@ -543,6 +543,10 @@ td { font-size: 15px; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr { transition: background-color 180ms ease; }
 tbody tr:hover { background: var(--surface-2); }
+/* A newer record in the same lane replaced this one in Compare. Dimmed with
+   the secondary ink rather than opacity, so it keeps its contrast. */
+tr.is-stale td { color: var(--ink-dim); }
+.stale-note { display: block; font-size: 12px; font-family: var(--sans); }
 
 td.right, th.right { text-align: right; }
 .cell-actions { display: flex; gap: 6px; justify-content: flex-end; }

@@ -162,6 +162,35 @@ def is_transfer(exchange: Exchange) -> bool:
     return exchange.spent_currency == exchange.received_currency
 
 
+def latest_per_lane(exchanges: Iterable[Exchange]) -> list[Exchange]:
+    """The newest record of each conversion; older ones are history.
+
+    A lane is the currency pair plus the banks the money leaves and lands at.
+    Repeating a conversion records today's rate rather than a second road, so
+    only the latest by `made_on` routes — entry order breaks ties, never more,
+    since a backlog typed in later is still the older rate.
+    """
+    latest: dict[tuple, Exchange] = {}
+    for exchange in exchanges:
+        lane = (exchange.spent_currency, exchange.received_currency, *provider_ends(exchange))
+        held = latest.get(lane)
+        if held is None or (exchange.made_on, exchange.created_at, exchange.pk) > (
+            held.made_on,
+            held.created_at,
+            held.pk,
+        ):
+            latest[lane] = exchange
+    return list(latest.values())
+
+
+def _edges(exchanges: Iterable[Exchange]) -> dict[str, list[Exchange]]:
+    """Current exchanges keyed by the currency they spend."""
+    edges: dict[str, list[Exchange]] = {}
+    for exchange in latest_per_lane(exchanges):
+        edges.setdefault(exchange.spent_currency, []).append(exchange)
+    return edges
+
+
 def chain_rate(exchanges: Sequence[Exchange]) -> Decimal:
     """Compound rate across a connected chain of exchanges."""
     if not exchanges:
@@ -206,10 +235,7 @@ def best_paths(
     if base == target:
         return []
 
-    edges: dict[str, list[Exchange]] = {}
-    for exchange in exchanges:
-        edges.setdefault(exchange.spent_currency, []).append(exchange)
-
+    edges = _edges(exchanges)
     found: list[Path] = []
 
     def continues(exchange: Exchange, holder: str | None) -> bool:
@@ -358,13 +384,10 @@ def blocked_chain(
     the currency held and the two banks either side of it — so the empty state
     can name the actual obstacle instead of guessing.
     """
-    rows = list(exchanges)
     if base == target:
         return None
 
-    edges: dict[str, list[Exchange]] = {}
-    for exchange in rows:
-        edges.setdefault(exchange.spent_currency, []).append(exchange)
+    edges = _edges(exchanges)
 
     found: list[tuple[int, tuple[Exchange, Exchange]]] = []
 

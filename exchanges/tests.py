@@ -1917,3 +1917,35 @@ class NoSavedRoutesTests(SignedIn, TestCase):
         response = self.client.get(reverse("dashboard"))
         self.assertNotContains(response, "/route/")
         self.assertNotIn("saved_routes", response.context)
+
+class LatestPerLaneTests(SignedIn, TestCase):
+    """A repeat of the same conversion replaces the old rate, not joins it.
+
+    A lane is the currency pair plus where the money starts and lands. Only its
+    newest record by `made_on` routes; older ones stay in the ledger as history.
+    """
+
+    def setUp(self):
+        self.old = make(100, Currency.BYN, 28, Currency.EUR, "Prior")
+        self.new = make(100, Currency.BYN, 29, Currency.EUR, "Prior")
+        # Entered last, but made first: a backlog row must not win.
+        self.backlog = make(100, Currency.BYN, 30, Currency.EUR, "Prior")
+        Exchange.objects.filter(pk=self.old.pk).update(made_on="2026-01-01")
+        Exchange.objects.filter(pk=self.backlog.pk).update(made_on="2026-02-01")
+
+    def test_only_the_newest_record_in_a_lane_routes(self):
+        paths = best_paths(Exchange.objects.all(), Currency.BYN, Currency.EUR)
+        self.assertEqual([p.legs[0].exchange.pk for p in paths], [self.new.pk])
+
+    def test_another_bank_is_another_lane(self):
+        other = make(100, Currency.BYN, 27, Currency.EUR, "Freedom")
+        paths = best_paths(Exchange.objects.all(), Currency.BYN, Currency.EUR)
+        self.assertEqual(
+            sorted(p.legs[0].exchange.pk for p in paths), sorted([self.new.pk, other.pk])
+        )
+
+    def test_ledger_marks_older_records(self):
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.context["current"], {self.new.pk})
+        self.assertContains(response, "is-stale", count=2)
+

@@ -639,3 +639,6 @@ msgstr "Дата"
 
 msgid "Your exchanges are private to your account."
 msgstr "Ваши обмены видны только вам."
+
+msgid "older rate"
+msgstr "старый курс"

@@ -150,12 +150,12 @@
         </thead>
         <tbody>
           {% for e in exchanges %}
-            <tr>
+            <tr{% if e.pk not in current %} class="is-stale"{% endif %}>
               <td class="num" data-label="{% trans "Date" %}">{{ e.made_on|date:"SHORT_DATE_FORMAT" }}</td>
               <td class="num" data-label="{% trans "Spent" %}">{{ e.spent_amount|money }} {{ e.spent_currency|symbol }}</td>
               <td class="num" data-label="{% trans "Received" %}">{{ e.received_amount|money }} {{ e.received_currency|symbol }}</td>
               <td data-label="{% trans "Via" %}">{{ e.provider|default:"—" }}</td>
-              <td class="right num" data-label="{% trans "Rate" %}">1 {{ e.spent_currency|symbol }} = {{ e.rate|rate }} {{ e.received_currency|symbol }}</td>
+              <td class="right num" data-label="{% trans "Rate" %}">1 {{ e.spent_currency|symbol }} = {{ e.rate|rate }} {{ e.received_currency|symbol }}{% if e.pk not in current %}<span class="stale-note">{% trans "older rate" %}</span>{% endif %}</td>
               <td class="right cell-actions-wrap">
                 <div class="cell-actions">
                   <a class="btn btn-ghost btn-sm" href="{% url 'exchange-edit' e.pk %}">{% trans "Edit" %}</a>
