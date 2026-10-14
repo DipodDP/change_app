@@ -192,6 +192,7 @@
         <caption class="sr-only">{% trans "Every exchange you have recorded, with its effective rate" %}</caption>
         <thead>
           <tr>
+            <th scope="col">{% trans "Date" %}</th>
             <th scope="col">{% trans "Spent" %}</th>
             <th scope="col">{% trans "Received" %}</th>
             <th scope="col">{% trans "Via" %}</th>
@@ -203,6 +204,7 @@
           {% for row in rows %}
             {% with e=row.exchange %}
             <tr>
+              <td class="num" data-label="{% trans "Date" %}">{{ e.made_on|date:"SHORT_DATE_FORMAT" }}</td>
               <td class="num" data-label="{% trans "Spent" %}">{{ e.spent_amount|money }} {{ e.spent_currency|symbol }}</td>
               <td class="num" data-label="{% trans "Received" %}">{{ e.received_amount|money }} {{ e.received_currency|symbol }}</td>
               <td data-label="{% trans "Via" %}">

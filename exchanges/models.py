@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 # Rates are derived from the user's own amounts, so precision matters more than
@@ -93,10 +94,13 @@ class Exchange(models.Model):
         related_name="exchanges",
         verbose_name=_("owner"),
     )
+    # When the conversion happened, which is not when it was typed in: a
+    # backlog entered later must not pass for the newest rate.
+    made_on = models.DateField(_("date"), default=timezone.localdate)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at", "-pk"]
+        ordering = ["-made_on", "-created_at", "-pk"]
         verbose_name = _("exchange")
         verbose_name_plural = _("exchanges")
 

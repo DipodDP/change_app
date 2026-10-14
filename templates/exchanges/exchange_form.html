@@ -42,6 +42,11 @@
         {{ form.received_currency }}
         {% for e in form.received_currency.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
       </div>
+      <div class="field">
+        <label for="{{ form.made_on.id_for_label }}">{{ form.made_on.label }}</label>
+        {{ form.made_on }}
+        {% for e in form.made_on.errors %}<ul class="errorlist"><li>{{ e }}</li></ul>{% endfor %}
+      </div>
     </div>
 
     <div class="field mt-4">

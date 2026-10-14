@@ -630,3 +630,9 @@ msgstr "Войти"
 #: templates/registration/login.html:12
 msgid "Your exchanges and routes are private to your account."
 msgstr "Ваши обмены и маршруты видны только вам."
+
+msgid "date"
+msgstr "дата"
+
+msgid "Date"
+msgstr "Дата"

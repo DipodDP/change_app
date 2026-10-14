@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django import forms
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from django.contrib.auth.forms import AuthenticationForm
@@ -37,6 +38,7 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             "received_currency",
             "provider",
             "received_provider",
+            "made_on",
         ]
         labels = {
             "spent_amount": _("I spent"),
@@ -45,8 +47,10 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             "received_currency": _("Received currency"),
             "provider": _("Bank or service"),
             "received_provider": _("Money ends up at"),
+            "made_on": _("Date"),
         }
         widgets = {
+            "made_on": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "spent_amount": forms.NumberInput(
                 attrs={"step": "0.01", "min": "0.01", "inputmode": "decimal"}
             ),
@@ -69,6 +73,11 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
             choices = currency_choices(exchanges)
             for name in ("spent_currency", "received_currency"):
                 self.fields[name].choices = choices
+        self.fields["made_on"].required = False
+
+    def clean_made_on(self):
+        # A cleared date means the same as an untouched one: it happened today.
+        return self.cleaned_data.get("made_on") or timezone.localdate()
 
     def clean(self):
         cleaned = super().clean()

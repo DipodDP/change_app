@@ -2420,3 +2420,37 @@ class DestinationDisclosureTests(SignedIn, TestCase):
         self.assertIn(".disclose > summary::before", css)
         # The default marker cannot be positioned, so it is replaced outright.
         self.assertIn("::-webkit-details-marker", css)
+
+
+class MadeOnTests(SignedIn, TestCase):
+    """When the conversion happened, not when it was typed in.
+
+    A backlog entered at the desk must not outrank a rate from last week just
+    because its row is newer.
+    """
+
+    def test_defaults_to_today(self):
+        from django.utils import timezone
+
+        self.assertEqual(make(100, Currency.BYN, 30, Currency.USD).made_on, timezone.localdate())
+
+    def test_can_be_backdated_from_the_form(self):
+        self.client.post(
+            reverse("exchange-create"),
+            {
+                "spent_amount": "100",
+                "spent_currency": "BYN",
+                "received_amount": "30",
+                "received_currency": "USD",
+                "made_on": "2026-03-01",
+            },
+        )
+        self.assertEqual(str(Exchange.objects.get().made_on), "2026-03-01")
+
+    def test_ledger_lists_by_date_not_entry_order(self):
+        recent = make(100, Currency.BYN, 30, Currency.USD)
+        old = make(100, Currency.BYN, 29, Currency.USD)
+        Exchange.objects.filter(pk=old.pk).update(made_on="2026-03-01")
+        Exchange.objects.update(owner=self.user)
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual([e.pk for e in response.context["exchanges"]], [recent.pk, old.pk])
