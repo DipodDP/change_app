@@ -527,8 +527,12 @@ msgid "Enter what you actually paid and received — the rate follows."
 msgstr "Введите, сколько отдали и сколько получили — курс посчитается сам."
 
 #: templates/exchanges/exchange_form.html:50
-msgid "Optional. Naming the bank makes routes easier to tell apart."
-msgstr "Необязательно. С названием банка маршруты легче различать."
+msgid ""
+"Routes continue only at the bank where the money is. Moved it to another "
+"bank or deposited cash? Record that too, in the same currency."
+msgstr ""
+"Маршрут продолжается только в банке, где лежат деньги. Перевели в другой "
+"банк или внесли наличные — запишите и это, в той же валюте."
 
 #: templates/exchanges/exchange_form.html:54
 msgid "already used:"

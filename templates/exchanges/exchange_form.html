@@ -60,7 +60,7 @@
     <div class="field mt-4">
       <label for="{{ form.provider.id_for_label }}">{{ form.provider.label }}</label>
       {{ form.provider }}
-      <span class="helptext">{% trans "Optional. Naming the bank makes routes easier to tell apart." %}</span>
+      <span class="helptext">{% trans "Routes continue only at the bank where the money is. Moved it to another bank or deposited cash? Record that too, in the same currency." %}</span>
 
       {% if bank_picks %}
         <div class="picks mt-2">

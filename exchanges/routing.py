@@ -18,7 +18,6 @@ from .money import quantize_money
 # and the bound keeps enumeration cheap.
 MAX_LEGS = 5
 
-QUANT_RATE = Decimal("0.00000001")
 QUANT_PCT = Decimal("0.01")
 
 
@@ -94,7 +93,7 @@ class Option:
         """
         if not self.path.rate:
             return Decimal(0)
-        return (Decimal(1) / self.path.rate).quantize(QUANT_RATE)
+        return Decimal(1) / self.path.rate
 
     @property
     def legs(self) -> tuple[Leg, ...]:
@@ -215,7 +214,7 @@ def chain_rate(exchanges: Sequence[Exchange]) -> Decimal:
             )
     for exchange in exchanges:
         total *= exchange.rate
-    return total.quantize(QUANT_RATE)
+    return total
 
 
 def best_paths(
@@ -260,6 +259,14 @@ def best_paths(
         for exchange in edges.get(currency, ()):
             if not continues(exchange, holder):
                 continue
+            # Past the target only a move between banks is left — a deposit,
+            # say — and never back to a bank this money already sat in.
+            if currency == target and not (
+                is_transfer(exchange)
+                and provider_ends(exchange)[1]
+                not in {bank for leg in legs for bank in provider_ends(leg.exchange)}
+            ):
+                continue
             # A transfer moves funds that are already somewhere. With no holder
             # established there is nothing to move, and taking it would only
             # duplicate the chain that starts at the destination bank outright.
@@ -270,10 +277,9 @@ def best_paths(
                 continue
             extended = legs + (Leg(exchange),)
             if nxt == target:
+                # The target held where this leg left it is one answer; the
+                # same money moved on to another bank is another, fee and all.
                 found.append(Path(extended))
-                # Reaching the target ends this branch: continuing would only
-                # add a detour that leaves and re-enters the target currency.
-                continue
             # The payout now sits wherever this exchange was made. An
             # unrecorded provider leaves that unknown, which frees the next
             # leg rather than pinning it to the bank two hops back.

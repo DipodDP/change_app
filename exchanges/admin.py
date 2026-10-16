@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import Exchange
+from .templatetags.money import rate
 
 
 @admin.register(Exchange)
@@ -19,4 +20,4 @@ class ExchangeAdmin(admin.ModelAdmin):
 
     @admin.display(description="rate")
     def effective_rate(self, obj):
-        return f"1 {obj.spent_currency} = {obj.rate.normalize()} {obj.received_currency}"
+        return f"1 {obj.spent_currency} = {rate(obj.rate)} {obj.received_currency}"

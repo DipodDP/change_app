@@ -85,6 +85,15 @@ class ChainRateTests(TestCase):
             chain_rate([a, b]).quantize(Decimal("0.01")), Decimal("102.85")
         )
 
+    def test_a_weak_currency_keeps_its_exact_rate(self):
+        # 1000 / 25 450 000 rounded to 8 places is 0.00003929, which turned
+        # the same amount back into 999.93 USD instead of the 1000 received.
+        make(25450000, Currency.VND, 1000, Currency.USD)
+        (best,) = compare(
+            Exchange.objects.all(), Currency.VND, Currency.USD, Decimal("25450000")
+        )
+        self.assertEqual(best.payout, Decimal("1000.00"))
+
     def test_empty_chain_raises(self):
         with self.assertRaises(ValueError):
             chain_rate([])
@@ -806,7 +815,8 @@ class RegistrationTests(TestCase):
         self.client.post(
             reverse("exchange-create"),
             {"spent_amount": "50", "spent_currency": "USD",
-             "received_amount": "45", "received_currency": "EUR"},
+             "received_amount": "45", "received_currency": "EUR",
+             "provider": "Wise"},
         )
         self._register()
         self.assertEqual(Exchange.objects.get().owner.username, "ann@example.com")
@@ -1122,6 +1132,22 @@ class TransferTests(TestCase):
     landed in, and may keep the same currency on both sides.
     """
 
+    def test_a_deposit_after_reaching_the_target_is_its_own_route(self):
+        # Euros bought in cash and deposited at Prior: "EUR in hand" and
+        # "EUR at Prior" are both answers, and only the second pays the fee.
+        make(150966, Currency.RUB, 1540, Currency.EUR, "Cash")
+        make(1540, Currency.EUR, 1530, Currency.EUR, "Cash", received_provider="Prior")
+        options = compare(Exchange.objects.all(), Currency.RUB, Currency.EUR, Decimal("150966"))
+        self.assertEqual([o.payout for o in options], [Decimal("1540.00"), Decimal("1530.00")])
+        self.assertEqual(provider_ends(options[1].legs[-1].exchange)[1], "Prior")
+
+    def test_transfers_past_the_target_do_not_return_to_a_bank(self):
+        make(100, Currency.BYN, 30, Currency.EUR, "Cash")
+        make(30, Currency.EUR, 30, Currency.EUR, "Cash", received_provider="Prior")
+        make(30, Currency.EUR, 30, Currency.EUR, "Prior", received_provider="Cash")
+        options = compare(Exchange.objects.all(), Currency.BYN, Currency.EUR, Decimal("100"))
+        self.assertEqual(len(options), 2)
+
     def test_a_transfer_may_keep_the_same_currency(self):
         form = ExchangeForm(
             data={
@@ -1217,14 +1243,14 @@ class SameCurrencyCostTests(TestCase):
         )
         self.assertTrue(form.is_valid(), form.errors)
 
-    def test_a_same_currency_transfer_with_no_bank_is_accepted(self):
+    def test_a_same_currency_transfer_is_accepted(self):
         form = ExchangeForm(
             data={
                 "spent_amount": "1000",
                 "spent_currency": Currency.BYN,
                 "received_amount": "995",
                 "received_currency": Currency.BYN,
-                "provider": "",
+                "provider": "Белинвестбанк",
             }
         )
         self.assertTrue(form.is_valid(), form.errors)
@@ -2045,6 +2071,14 @@ class MadeOnTests(SignedIn, TestCase):
     because its row is newer.
     """
 
+    def test_the_bank_is_required(self):
+        # An unnamed bank chains to money held anywhere, inventing routes.
+        form = ExchangeForm(
+            {"spent_amount": "100", "spent_currency": "BYN",
+             "received_amount": "30", "received_currency": "USD"}
+        )
+        self.assertIn("provider", form.errors)
+
     def test_defaults_to_today(self):
         from django.utils import timezone
 
@@ -2058,6 +2092,7 @@ class MadeOnTests(SignedIn, TestCase):
                 "spent_currency": "BYN",
                 "received_amount": "30",
                 "received_currency": "USD",
+                "provider": "Prior",
                 "made_on": "2026-03-01",
             },
         )
@@ -2068,7 +2103,7 @@ class MadeOnTests(SignedIn, TestCase):
             reverse("exchange-create"),
             {"spent_amount": "100", "spent_currency": "BYN",
              "received_amount": "30", "received_currency": "USD",
-             "made_on": made_on.isoformat()},
+             "provider": "Prior", "made_on": made_on.isoformat()},
         )
 
     @override_settings(LANGUAGE_CODE="en")
@@ -2109,7 +2144,7 @@ class MadeOnTests(SignedIn, TestCase):
             reverse("exchange-edit", args=[e.pk]),
             {"spent_amount": "100", "spent_currency": "BYN",
              "received_amount": "30", "received_currency": "USD",
-             "made_on": "07.04.2026"},
+             "provider": "Prior", "made_on": "07.04.2026"},
         )
         self.assertEqual(str(Exchange.objects.get(pk=e.pk).made_on), "2026-04-07")
 
@@ -2197,7 +2232,7 @@ class HardeningTests(SignedIn, TestCase):
         make("14.02", Currency.EUR, 5000, Currency.HUF, "Prior")
 
     def _record(self, **data):
-        base = {"spent_currency": "BYN", "received_currency": "EUR"}
+        base = {"spent_currency": "BYN", "received_currency": "EUR", "provider": "Prior"}
         return self.client.post(reverse("exchange-create"), {**base, **data})
 
     def test_a_decimal_comma_is_accepted(self):

@@ -108,6 +108,10 @@ class ExchangeForm(StyledFormMixin, forms.ModelForm):
                 self.initial.setdefault("spent_currency", spent)
                 self.initial.setdefault("received_currency", received)
         self.fields["made_on"].required = False
+        # A route only continues at the bank holding the money; an unnamed one
+        # would chain to every bank and invent routes. The model stays blank
+        # for rows saved before this.
+        self.fields["provider"].required = True
         # The calendar writes its pick back in the format the field shows.
         self.fields["made_on"].widget.attrs["data-format"] = formats.get_format(
             "DATE_INPUT_FORMATS"

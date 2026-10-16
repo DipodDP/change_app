@@ -6,9 +6,6 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-# Rates are derived from the user's own amounts, so precision matters more than
-# range: HUF-per-BYN sits near 100 while BYN-per-HUF sits near 0.01.
-RATE_DP = Decimal("0.00000001")
 
 
 class Currency(models.TextChoices):
@@ -116,5 +113,9 @@ class Exchange(models.Model):
 
     @property
     def rate(self) -> Decimal:
-        """Units of received currency per one unit of spent currency."""
-        return (self.received_amount / self.spent_amount).quantize(RATE_DP)
+        """Units of received currency per one unit of spent currency.
+
+        Unrounded: VND-per-USD sits near 0.00004, where 8 places keep only four
+        digits and lose cents on the round trip. Display rounds, maths does not.
+        """
+        return self.received_amount / self.spent_amount
