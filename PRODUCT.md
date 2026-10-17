@@ -41,8 +41,8 @@ automatically.
 ## Operating Context
 
 - Record an exchange: spent amount + currency, received amount + currency,
-  optional provider (the bank that did it) and destination provider (for
-  transfers that move money between banks).
+  provider (the bank that did it, required) and destination provider (for
+  transfers that move money between banks or deposit cash).
 - Compare: pick source and target currency, get every chain ranked by payout,
   with the shortfall against the winner shown as a percentage.
 - Clear all (header, only when data exists) wipes the account after a
@@ -58,15 +58,16 @@ automatically.
 - **Rates are historical.** They come from conversions already made and are not
   live quotes. Nothing in the product may imply otherwise.
 - Money rounds to 2 decimal places with banker's rounding (`ROUND_HALF_EVEN`);
-  rates keep 8 decimal places, because a sub-unit rate collapses to `0.01` at
-  money precision.
+  rates are never rounded in calculations, only for display, because weak
+  currencies (VND, UZS) lose cents at any fixed precision.
 - 30 currencies, ordered by usage; labels are the symbol where one is in common
   use and the code otherwise, and the picker shows both.
 - Terminology: *exchange* (one conversion performed), *route* (a chain of exchanges found by Compare),
   *provider* (the bank), *payout* (what you end up with), *rate* (received per
   unit spent).
 - Routes stay within a single bank unless an exchange records a destination
-  provider.
+  provider. A route may end with such a transfer, so "EUR in cash" and "EUR at
+  the bank" are separate options.
 
 ## Brand Commitments
 
@@ -77,7 +78,7 @@ see Evidence.
 
 ## Evidence on Hand
 
-- Real worked example in `README.md` (BYN → HUF via EUR beats via USD by 316.37
+- Real worked example in `README.md` (BYN → HUF via EUR beats via USD by 464.26
   HUF per 100 BYN) — genuine, safe to use in docs and tests, never as
   data loaded into an account.
 - No testimonials, customers, benchmarks, pricing, press, or logo assets exist.

@@ -777,6 +777,17 @@ class GuestTests(TestCase):
         self.assertFalse(Exchange.objects.filter(pk=abandoned.pk).exists())
         self.assertTrue(Exchange.objects.filter(pk=self.orphan.pk).exists())
 
+    def test_purge_refuses_when_sessions_are_unreadable(self):
+        # Sessions signed with another SECRET_KEY decode as empty, which would
+        # make every guest look abandoned.
+        from django.core.management import CommandError, call_command
+
+        self._record()
+        with override_settings(SECRET_KEY="not-the-key-the-site-runs-with"):
+            with self.assertRaises(CommandError):
+                call_command("purge_guests", verbosity=0)
+        self.assertTrue(Exchange.objects.filter(provider="Wise").exists())
+
 
 @override_settings(LANGUAGE_CODE="en")
 class RegistrationTests(TestCase):
@@ -2298,3 +2309,26 @@ class StylesheetVersionTests(SignedIn, TestCase):
         self.assertRegex(
             self.client.get(reverse("dashboard")).content.decode(), r"app\.css\?v=\d+"
         )
+
+
+class EnvFileTests(TestCase):
+    """The server keeps its settings in .env, read by the site, the console
+    and the scheduled task alike."""
+
+    def test_reads_values_and_lets_the_environment_win(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        from config.settings import load_env
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".env"
+            path.write_text("# comment\nA_KEY=from-file\nB_KEY = spaced \nSET_KEY=file\n\n")
+            with mock.patch.dict(os.environ, {"SET_KEY": "env"}, clear=False):
+                load_env(path)
+                self.assertEqual(os.environ["A_KEY"], "from-file")
+                self.assertEqual(os.environ["B_KEY"], "spaced")
+                self.assertEqual(os.environ["SET_KEY"], "env")
+            load_env(Path(tmp) / "missing")  # no file is fine

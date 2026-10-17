@@ -1,8 +1,8 @@
 [project]
 name = "change"
-version = "0.10.2"
+version = "0.10.3"
 description = "Find the cheapest currency conversion route through exchanges you have actually made"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "django>=5.0",
 ]

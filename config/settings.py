@@ -13,8 +13,24 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def load_env(path):
+    """KEY=value lines from a server's .env, so the site, its console and its
+    scheduled tasks share one configuration. The real environment wins."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        key, sep, value = line.partition('=')
+        if sep and not key.lstrip().startswith('#'):
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+load_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,25 +44,20 @@ SECRET_KEY = os.environ.get(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
+if not DEBUG and SECRET_KEY.startswith('django-insecure-'):
+    raise ImproperlyConfigured('Set DJANGO_SECRET_KEY when DJANGO_DEBUG=0.')
 
-# Reachable over the tailnet as well as locally. Tailscale addresses live in
-# 100.64.0.0/10 (CGNAT range); listing the host's own address keeps Django from
-# rejecting requests that arrive on the tailnet interface.
+# Served over HTTPS outside development, so cookies never travel in clear.
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+
+# Anything beyond localhost comes from DJANGO_ALLOWED_HOSTS in .env: a
+# deployment's domain, or a machine's own LAN or tailnet address. Same-origin
+# form posts pass CSRF on any of them, so no trusted origins are needed.
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "100.80.223.29",
-    "100.71.87.79",
     ".ts.net",
-]
-
-# The tailnet is private but not encrypted end-to-end by the browser, and the
-# dev server speaks plain HTTP, so CSRF must trust the tailnet origins too.
-CSRF_TRUSTED_ORIGINS = [
-    "http://100.80.223.29:8000",
-    "http://100.71.87.79:8000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    *filter(None, os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")),
 ]
 
 
@@ -149,6 +160,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+# Where collectstatic gathers everything for the web server to serve.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Authentication

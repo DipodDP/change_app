@@ -299,7 +299,9 @@ msgid "Enter what you actually paid and received — the rate follows."
 msgstr ""
 
 #: templates/exchanges/exchange_form.html:48
-msgid "Optional. Naming the bank makes routes easier to tell apart."
+msgid ""
+"Routes continue only at the bank where the money is. Moved it to another "
+"bank or deposited cash? Record that too, in the same currency."
 msgstr ""
 
 #: templates/exchanges/exchange_form.html:52
